@@ -22,6 +22,8 @@ export interface RoomState {
   gameMode: GameMode;
   players: Player[];
   createdAt: number;
+  /** Rooms lock while a match is in progress — no new players may join. */
+  status?: "lobby" | "in-game";
 }
 
 export interface CreateRoomInput {

@@ -67,12 +67,24 @@ function JoinRoom() {
 
     setSubmitting(true);
     setTimeout(() => {
-      const room = joinRoom(form.playerName.trim(), form.roomCode);
-      const me = room.players[room.players.length - 1];
-      setMeId(me.id);
-      setSubmitting(false);
-      notify.success("Joined successfully", `Welcome to ${room.name}.`);
-      navigate({ to: "/lobby" });
+      try {
+        const room = joinRoom(form.playerName.trim(), form.roomCode);
+        const me = room.players[room.players.length - 1];
+        setMeId(me.id);
+        setSubmitting(false);
+        notify.success("Joined successfully", `Welcome to ${room.name}.`);
+        navigate({ to: "/lobby" });
+      } catch (err) {
+        setSubmitting(false);
+        const code = err instanceof Error ? err.message : "UNKNOWN";
+        if (code === "ROOM_LOCKED") {
+          notify.error("Match in progress", "This room is locked until the current match ends.");
+        } else if (code === "ROOM_FULL") {
+          notify.error("Room is full", "Every seat at this table is taken.");
+        } else {
+          notify.error("Couldn't join", "Something unexpected happened. Try again.");
+        }
+      }
     }, 900);
   };
 

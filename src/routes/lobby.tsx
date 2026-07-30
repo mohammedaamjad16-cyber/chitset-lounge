@@ -14,7 +14,8 @@ import { HostControls } from "@/components/lobby/host-controls";
 import { InvitePanel } from "@/components/lobby/invite-panel";
 import { RoomSettingsDialog } from "@/components/lobby/room-settings-dialog";
 import { getCategory } from "@/lib/game/categories";
-import { useRoom, toggleReady, leaveRoom, getMeId } from "@/lib/game/room-store";
+import { useRoom, toggleReady, leaveRoom, getMeId, setRoomStatus, fillWithSimulatedPlayers, getRoomSnapshot } from "@/lib/game/room-store";
+import { endMatch, startMatch } from "@/lib/game/match-store";
 import { notify } from "@/lib/notify";
 
 export const Route = createFileRoute("/lobby")({
@@ -46,6 +47,9 @@ function Lobby() {
 
   useEffect(() => {
     setMe(getMeId());
+    // Returning to the lobby always reopens the room.
+    setRoomStatus("lobby");
+    endMatch();
     const t = setTimeout(() => setHydrating(false), 350);
     return () => clearTimeout(t);
   }, []);
@@ -80,8 +84,13 @@ function Lobby() {
 
   const start = () => {
     setStarting(true);
+    if (room.players.length < 2) fillWithSimulatedPlayers(Math.max(2, room.maxPlayers));
+    setRoomStatus("in-game");
     setTimeout(() => {
       setStarting(false);
+      const live = getRoomSnapshot() ?? room;
+      startMatch({ ...live, status: "in-game" }, meId);
+      notify.success("Match starting", "Room locked. Chits are being shuffled.");
       navigate({ to: "/game" });
     }, 700);
   };
