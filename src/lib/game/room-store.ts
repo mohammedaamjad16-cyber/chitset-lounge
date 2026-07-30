@@ -142,7 +142,6 @@ const SIM_NAMES = ["Rahul", "Meera", "Kabir", "Ananya", "Vikram", "Zoya"];
  * opponents so a full match can always be played.
  */
 export function fillWithSimulatedPlayers(target?: number) {
-  console.log('[fill]', state?.players.length, target);
   if (!state) return;
   const seats = Math.min(target ?? state.maxPlayers, state.maxPlayers);
   if (state.players.length >= seats) return;
