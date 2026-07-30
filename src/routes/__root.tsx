@@ -14,6 +14,8 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { ThemeProvider } from "@/contexts/theme-context";
 import { SiteLayout } from "@/layouts/site-layout";
 import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 function NotFoundComponent() {
   return (
@@ -121,14 +123,17 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const isMobile = useIsMobile();
 
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <SiteLayout>
-          <Outlet />
-        </SiteLayout>
-        <Toaster position="top-center" richColors />
+        <TooltipProvider delayDuration={200}>
+          <SiteLayout>
+            <Outlet />
+          </SiteLayout>
+          <Toaster position={isMobile ? "bottom-center" : "top-right"} richColors closeButton />
+        </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );
