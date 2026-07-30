@@ -67,7 +67,7 @@ function Lobby() {
   const me = room.players.find((p) => p.id === meId) ?? room.players[0];
   const isHost = me?.id === room.hostId;
   const category = getCategory(room.categoryId);
-  const allReady = room.players.length > 1 && room.players.every((p) => p.isReady);
+  const allReady = room.players.length > 0 && room.players.every((p) => p.isReady);
 
   const copyCode = async () => {
     try {
