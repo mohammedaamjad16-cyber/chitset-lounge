@@ -1,40 +1,10 @@
 import { useCallback } from "react";
+import { playCue, unlockAudio, type SoundCue } from "@/lib/audio/audio-manager";
 
-/**
- * Sound placeholders. No audio assets are bundled yet — each cue is a no-op
- * hook point so real samples can be dropped in without touching game code.
- */
-export type SoundCue =
-  | "click"
-  | "flip"
-  | "pass"
-  | "turnStart"
-  | "timerWarning"
-  | "winner"
-  | "error";
+export type { SoundCue };
 
-const SOUND_SOURCES: Record<SoundCue, string | null> = {
-  click: null,
-  flip: null,
-  pass: null,
-  turnStart: null,
-  timerWarning: null,
-  winner: null,
-  error: null,
-};
-
+/** Thin hook over the audio manager, kept for existing gameplay call sites. */
 export function useGameSound() {
-  const play = useCallback((cue: SoundCue) => {
-    const src = SOUND_SOURCES[cue];
-    if (!src || typeof window === "undefined") return;
-    try {
-      const audio = new Audio(src);
-      audio.volume = 0.4;
-      void audio.play();
-    } catch {
-      /* autoplay blocked — silent by design */
-    }
-  }, []);
-
-  return { play };
+  const play = useCallback((cue: SoundCue) => playCue(cue), []);
+  return { play, unlock: unlockAudio };
 }

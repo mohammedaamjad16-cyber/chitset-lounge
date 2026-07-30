@@ -185,3 +185,27 @@ export function getMeId(): string | null {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem(ME_KEY);
 }
+
+/* ------------------------------------------------------------------ */
+/* Online mode — the realtime layer pushes authoritative room state    */
+/* ------------------------------------------------------------------ */
+
+const ONLINE_KEY = "chitset:online";
+
+/** Replace the whole room state (used by the realtime sync layer). */
+export function setRoom(next: RoomState | null) {
+  hydrate();
+  state = next;
+  emit();
+}
+
+export function setOnlineMode(online: boolean) {
+  if (typeof window === "undefined") return;
+  if (online) window.localStorage.setItem(ONLINE_KEY, "1");
+  else window.localStorage.removeItem(ONLINE_KEY);
+}
+
+export function isOnlineMode(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(ONLINE_KEY) === "1";
+}

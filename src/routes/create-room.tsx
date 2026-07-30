@@ -19,7 +19,9 @@ import { Badge } from "@/components/ui/badge";
 import { CategoryGrid } from "@/components/room/category-grid";
 import { ButtonLoader } from "@/components/shared/loaders";
 import { notify } from "@/lib/notify";
-import { createRoom, setMeId } from "@/lib/game/room-store";
+import { createRoom, setMeId, setOnlineMode } from "@/lib/game/room-store";
+import { createOnlineRoom } from "@/lib/realtime/room-sync";
+import { useAuth } from "@/lib/auth/auth-context";
 import { CATEGORIES } from "@/lib/game/categories";
 import { cn } from "@/lib/utils";
 
@@ -68,6 +70,7 @@ function CreateRoom() {
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
+  const { user, profile } = useAuth();
 
   const isValid = useMemo(() => schema.safeParse(form).success, [form]);
 
@@ -91,20 +94,34 @@ function CreateRoom() {
     }
 
     setSubmitting(true);
-    setTimeout(() => {
-      const room = createRoom({
-        hostName: form.hostName.trim(),
-        roomName: form.roomName.trim(),
-        maxPlayers: Number(form.maxPlayers),
-        categoryId: form.categoryId,
-        visibility: form.visibility,
-        gameMode: "classic",
-      });
-      setMeId(room.hostId);
-      setSubmitting(false);
-      notify.success("Room created", `Room code ${room.code} is ready to share.`);
-      navigate({ to: "/lobby" });
-    }, 900);
+    const input = {
+      hostName: form.hostName.trim(),
+      roomName: form.roomName.trim(),
+      maxPlayers: Number(form.maxPlayers),
+      categoryId: form.categoryId,
+      visibility: form.visibility,
+      gameMode: "classic" as const,
+    };
+
+    void (async () => {
+      try {
+        if (user) {
+          const room = await createOnlineRoom(input, { id: user.id, emoji: profile?.avatar_emoji });
+          notify.success("Room created", `Room code ${room.code} is live — share it with friends.`);
+        } else {
+          await new Promise((r) => setTimeout(r, 700));
+          const room = createRoom(input);
+          setMeId(room.hostId);
+          setOnlineMode(false);
+          notify.success("Room created", `Room code ${room.code} is ready to share.`);
+        }
+        navigate({ to: "/lobby" });
+      } catch {
+        notify.error("Couldn't create room", "Something went wrong. Please try again.");
+      } finally {
+        setSubmitting(false);
+      }
+    })();
   };
 
   return (

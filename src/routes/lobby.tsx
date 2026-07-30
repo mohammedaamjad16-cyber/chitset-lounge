@@ -14,9 +14,18 @@ import { HostControls } from "@/components/lobby/host-controls";
 import { InvitePanel } from "@/components/lobby/invite-panel";
 import { RoomSettingsDialog } from "@/components/lobby/room-settings-dialog";
 import { getCategory } from "@/lib/game/categories";
-import { useRoom, toggleReady, leaveRoom, getMeId, setRoomStatus, fillWithSimulatedPlayers, getRoomSnapshot } from "@/lib/game/room-store";
+import { useRoom, toggleReady, leaveRoom, getMeId, setRoomStatus, fillWithSimulatedPlayers, getRoomSnapshot, isOnlineMode } from "@/lib/game/room-store";
 import { endMatch, startMatch } from "@/lib/game/match-store";
 import { notify } from "@/lib/notify";
+import { ChatPanel } from "@/components/chat/chat-panel";
+import { Wifi, WifiOff, Loader2 } from "lucide-react";
+import {
+  leaveOnlineRoom,
+  setOnlineReady,
+  setOnlineRoomStatus,
+  useRoomSync,
+} from "@/lib/realtime/room-sync";
+import { useMatchSync } from "@/lib/realtime/match-sync";
 
 export const Route = createFileRoute("/lobby")({
   head: () => ({
@@ -44,15 +53,32 @@ function Lobby() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [online, setOnline] = useState(false);
+  const syncStatus = useRoomSync(room?.code ?? null, online);
+  useMatchSync(room?.code ?? null, (room?.hostId ?? null) === meId, online);
 
   useEffect(() => {
     setMe(getMeId());
+    setOnline(isOnlineMode());
     // Returning to the lobby always reopens the room.
     setRoomStatus("lobby");
     endMatch();
+    const snap = getRoomSnapshot();
+    if (isOnlineMode() && snap && snap.hostId === getMeId()) {
+      void setOnlineRoomStatus(snap.code, "lobby");
+    }
     const t = setTimeout(() => setHydrating(false), 350);
     return () => clearTimeout(t);
   }, []);
+
+  // Guests follow the host into the match as soon as the room locks.
+  useEffect(() => {
+    if (!online || !room || !meId) return;
+    if (room.status === "in-game" && room.hostId !== meId) {
+      startMatch({ ...room, status: "in-game" }, meId);
+      navigate({ to: "/game" });
+    }
+  }, [online, room, meId, navigate]);
 
   if (hydrating) return <FullScreenLoader label="Entering the room..." />;
 
@@ -84,7 +110,11 @@ function Lobby() {
 
   const start = () => {
     setStarting(true);
-    if (room.players.length < 2) fillWithSimulatedPlayers(Math.max(2, room.maxPlayers));
+    if (online) {
+      void setOnlineRoomStatus(room.code, "in-game");
+    } else if (room.players.length < 2) {
+      fillWithSimulatedPlayers(Math.max(2, room.maxPlayers));
+    }
     setRoomStatus("in-game");
     setTimeout(() => {
       setStarting(false);
@@ -145,12 +175,27 @@ function Lobby() {
             )}
 
             <InvitePanel code={room.code} onCopyCode={copyCode} />
+
+            {online && me && (
+              <ChatPanel roomCode={room.code} selfId={me.id} variant="lobby" />
+            )}
           </div>
         </div>
 
         {/* Bottom action area */}
         <GlassCard className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            {online && (
+              <span className="inline-flex items-center gap-1 text-xs">
+                {syncStatus === "connected" ? (
+                  <><Wifi className="h-3.5 w-3.5 text-emerald-500" /> Live</>
+                ) : syncStatus === "reconnecting" ? (
+                  <><Loader2 className="h-3.5 w-3.5 animate-spin text-amber-500" /> Reconnecting</>
+                ) : (
+                  <><WifiOff className="h-3.5 w-3.5" /> Offline</>
+                )}
+              </span>
+            )}
             {allReady
               ? "Everyone is ready. The host can start the match."
               : "All players must be ready before the game can start."}
@@ -164,7 +209,8 @@ function Lobby() {
               variant={me?.isReady ? "secondary" : "default"}
               onClick={() => {
                 if (!me) return;
-                toggleReady(me.id);
+                if (online) void setOnlineReady(room.code, me.id, !me.isReady);
+                else toggleReady(me.id);
                 if (!me.isReady) notify.success("You're ready", "Waiting for the other players.");
               }}
             >
@@ -197,6 +243,7 @@ function Lobby() {
         confirmLabel="Leave Room"
         destructive
         onConfirm={() => {
+          if (online) void leaveOnlineRoom(room.code, me.id, isHost);
           leaveRoom();
           notify.info("You left the room");
           navigate({ to: "/" });

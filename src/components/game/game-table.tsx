@@ -3,11 +3,13 @@ import { RotateCw } from "lucide-react";
 import { GameSeat } from "./game-seat";
 import type { MatchState } from "@/lib/game/match-store";
 import { cn } from "@/lib/utils";
+import type { Reaction } from "@/lib/chat/use-reactions";
 
 interface GameTableProps {
   match: MatchState;
   meId: string | null;
   categoryName: string;
+  reactions?: Reaction[];
 }
 
 function seatPosition(index: number, total: number) {
@@ -16,7 +18,7 @@ function seatPosition(index: number, total: number) {
   return { left: 50 + radius * Math.cos(angle), top: 50 + radius * Math.sin(angle) };
 }
 
-export function GameTable({ match, meId, categoryName }: GameTableProps) {
+export function GameTable({ match, meId, categoryName, reactions }: GameTableProps) {
   const total = match.players.length;
   const active = match.players[match.turnIndex];
   const pass = match.pass;
@@ -52,6 +54,7 @@ export function GameTable({ match, meId, categoryName }: GameTableProps) {
                 isMe={player.id === meId}
                 turnStartedAt={match.turnStartedAt}
                 turnDurationMs={match.turnDurationMs}
+                reactions={reactions}
               />
             </div>
           );
@@ -92,6 +95,7 @@ export function GameTable({ match, meId, categoryName }: GameTableProps) {
               isMe={player.id === meId}
               turnStartedAt={match.turnStartedAt}
               turnDurationMs={match.turnDurationMs}
+              reactions={reactions}
               compact
             />
           ))}
