@@ -9,14 +9,26 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as LobbyRouteImport } from './routes/lobby'
 import { Route as JoinRoomRouteImport } from './routes/join-room'
+import { Route as GameRouteImport } from './routes/game'
 import { Route as CreateRoomRouteImport } from './routes/create-room'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 
+const LobbyRoute = LobbyRouteImport.update({
+  id: '/lobby',
+  path: '/lobby',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const JoinRoomRoute = JoinRoomRouteImport.update({
   id: '/join-room',
   path: '/join-room',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GameRoute = GameRouteImport.update({
+  id: '/game',
+  path: '/game',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CreateRoomRoute = CreateRoomRouteImport.update({
@@ -39,43 +51,72 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/create-room': typeof CreateRoomRoute
+  '/game': typeof GameRoute
   '/join-room': typeof JoinRoomRoute
+  '/lobby': typeof LobbyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/create-room': typeof CreateRoomRoute
+  '/game': typeof GameRoute
   '/join-room': typeof JoinRoomRoute
+  '/lobby': typeof LobbyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/create-room': typeof CreateRoomRoute
+  '/game': typeof GameRoute
   '/join-room': typeof JoinRoomRoute
+  '/lobby': typeof LobbyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/create-room' | '/join-room'
+  fullPaths: '/' | '/about' | '/create-room' | '/game' | '/join-room' | '/lobby'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/create-room' | '/join-room'
-  id: '__root__' | '/' | '/about' | '/create-room' | '/join-room'
+  to: '/' | '/about' | '/create-room' | '/game' | '/join-room' | '/lobby'
+  id:
+    | '__root__'
+    | '/'
+    | '/about'
+    | '/create-room'
+    | '/game'
+    | '/join-room'
+    | '/lobby'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   CreateRoomRoute: typeof CreateRoomRoute
+  GameRoute: typeof GameRoute
   JoinRoomRoute: typeof JoinRoomRoute
+  LobbyRoute: typeof LobbyRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/lobby': {
+      id: '/lobby'
+      path: '/lobby'
+      fullPath: '/lobby'
+      preLoaderRoute: typeof LobbyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/join-room': {
       id: '/join-room'
       path: '/join-room'
       fullPath: '/join-room'
       preLoaderRoute: typeof JoinRoomRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/game': {
+      id: '/game'
+      path: '/game'
+      fullPath: '/game'
+      preLoaderRoute: typeof GameRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/create-room': {
@@ -106,7 +147,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   CreateRoomRoute: CreateRoomRoute,
+  GameRoute: GameRoute,
   JoinRoomRoute: JoinRoomRoute,
+  LobbyRoute: LobbyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { z } from "zod";
 import { Plus, Users, Lock, Globe, Sparkles } from "lucide-react";
@@ -8,9 +8,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
+import { CategoryGrid } from "@/components/room/category-grid";
+import { ButtonLoader } from "@/components/shared/loaders";
+import { notify } from "@/lib/notify";
+import { createRoom, setMeId } from "@/lib/game/room-store";
+import { CATEGORIES } from "@/lib/game/categories";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/create-room")({
@@ -27,13 +37,18 @@ export const Route = createFileRoute("/create-room")({
   component: CreateRoom,
 });
 
+const selectableCategories = CATEGORIES.filter((c) => !c.comingSoon).map((c) => c.id) as [
+  string,
+  ...string[],
+];
+
 const schema = z.object({
   hostName: z.string().trim().min(2, "At least 2 characters").max(24, "Max 24 characters"),
   roomName: z.string().trim().min(2, "At least 2 characters").max(32, "Max 32 characters"),
-  maxPlayers: z.enum(["2", "3", "4"]),
-  category: z.enum(["casual", "friends", "family", "competitive"]),
+  maxPlayers: z.enum(["2", "3", "4", "5", "6", "7", "8"]),
+  categoryId: z.enum(selectableCategories),
   visibility: z.enum(["public", "private"]),
-  gameMode: z.enum(["classic", "blitz", "tournament"]),
+  gameMode: z.enum(["classic"]),
 });
 
 type FormState = z.infer<typeof schema>;
@@ -43,7 +58,7 @@ const initial: FormState = {
   hostName: "",
   roomName: "",
   maxPlayers: "4",
-  category: "casual",
+  categoryId: "fruits",
   visibility: "private",
   gameMode: "classic",
 };
@@ -51,7 +66,10 @@ const initial: FormState = {
 function CreateRoom() {
   const [form, setForm] = useState<FormState>(initial);
   const [errors, setErrors] = useState<Errors>({});
+  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
+
+  const isValid = useMemo(() => schema.safeParse(form).success, [form]);
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => {
     setForm((f) => ({ ...f, [k]: v }));
@@ -65,25 +83,33 @@ function CreateRoom() {
     if (!parsed.success) {
       const errs: Errors = {};
       for (const issue of parsed.error.issues) {
-        const key = issue.path[0] as keyof FormState;
-        errs[key] = issue.message;
+        errs[issue.path[0] as keyof FormState] = issue.message;
       }
       setErrors(errs);
-      toast.error("Please fix the highlighted fields.");
+      notify.error("Please fix the highlighted fields.");
       return;
     }
-    toast.success(`Room "${form.roomName}" ready. Gameplay coming soon!`);
-    // Placeholder: future navigation to lobby
-    navigate({ to: "/" });
+
+    setSubmitting(true);
+    setTimeout(() => {
+      const room = createRoom({
+        hostName: form.hostName.trim(),
+        roomName: form.roomName.trim(),
+        maxPlayers: Number(form.maxPlayers),
+        categoryId: form.categoryId,
+        visibility: form.visibility,
+        gameMode: "classic",
+      });
+      setMeId(room.hostId);
+      setSubmitting(false);
+      notify.success("Room created", `Room code ${room.code} is ready to share.`);
+      navigate({ to: "/lobby" });
+    }, 900);
   };
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-14 sm:px-6 lg:px-8">
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
+    <div className="mx-auto max-w-3xl px-4 py-14 sm:px-6 lg:px-8">
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-primary text-primary-foreground shadow-glow">
             <Plus className="h-6 w-6" />
@@ -94,51 +120,51 @@ function CreateRoom() {
 
         <GlassCard className="p-6 sm:p-8">
           <form onSubmit={onSubmit} className="space-y-6" noValidate>
-            <Field label="Host Name" error={errors.hostName}>
+            <Field label="Host Name" htmlFor="hostName" error={errors.hostName}>
               <Input
+                id="hostName"
+                className="min-h-11"
                 value={form.hostName}
                 onChange={(e) => set("hostName", e.target.value)}
                 placeholder="e.g. Aditi"
                 maxLength={24}
+                aria-invalid={!!errors.hostName}
+                aria-describedby={errors.hostName ? "hostName-error" : undefined}
               />
             </Field>
 
-            <Field label="Room Name" error={errors.roomName}>
+            <Field label="Room Name" htmlFor="roomName" error={errors.roomName}>
               <Input
+                id="roomName"
+                className="min-h-11"
                 value={form.roomName}
                 onChange={(e) => set("roomName", e.target.value)}
                 placeholder="e.g. Sunday Night Squad"
                 maxLength={32}
+                aria-invalid={!!errors.roomName}
+                aria-describedby={errors.roomName ? "roomName-error" : undefined}
               />
             </Field>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Maximum Players" error={errors.maxPlayers}>
-                <Select value={form.maxPlayers} onValueChange={(v) => set("maxPlayers", v as FormState["maxPlayers"])}>
-                  <SelectTrigger>
-                    <Users className="mr-2 h-4 w-4 text-muted-foreground" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="2">2 players</SelectItem>
-                    <SelectItem value="3">3 players</SelectItem>
-                    <SelectItem value="4">4 players</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
+            <Field label="Maximum Players" htmlFor="maxPlayers" error={errors.maxPlayers}>
+              <Select value={form.maxPlayers} onValueChange={(v) => set("maxPlayers", v as FormState["maxPlayers"])}>
+                <SelectTrigger id="maxPlayers" className="min-h-11">
+                  <Users className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[2, 3, 4, 5, 6, 7, 8].map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {n} players
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
 
-              <Field label="Category" error={errors.category}>
-                <Select value={form.category} onValueChange={(v) => set("category", v as FormState["category"])}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="casual">Casual</SelectItem>
-                    <SelectItem value="friends">Friends</SelectItem>
-                    <SelectItem value="family">Family</SelectItem>
-                    <SelectItem value="competitive">Competitive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
+            <Field label="Category" error={errors.categoryId}>
+              <CategoryGrid value={form.categoryId} onChange={(id) => set("categoryId", id as FormState["categoryId"])} />
+            </Field>
 
             <Field label="Visibility">
               <RadioGroup
@@ -152,19 +178,30 @@ function CreateRoom() {
             </Field>
 
             <Field label="Game Mode">
-              <div className="grid gap-2 sm:grid-cols-3">
-                <ModeOption title="Classic" desc="The original 4 Chit rules." active={form.gameMode === "classic"} onClick={() => set("gameMode", "classic")} />
-                <ModeOption title="Blitz" desc="Faster rounds, shorter timer." disabled />
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                <ModeOption title="Classic" desc="The original 4 Chit rules." active onClick={() => set("gameMode", "classic")} />
+                <ModeOption title="Team Mode" desc="Play in paired squads." disabled />
                 <ModeOption title="Tournament" desc="Bracket-style multi-round." disabled />
+                <ModeOption title="Ranked" desc="Climb the global ladder." disabled />
               </div>
             </Field>
 
             <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
-              <Button type="button" variant="outline" onClick={() => setForm(initial)}>
+              <Button type="button" variant="outline" className="min-h-11" onClick={() => { setForm(initial); setErrors({}); }}>
                 Reset
               </Button>
-              <Button type="submit" className="bg-gradient-primary text-primary-foreground shadow-glow hover:opacity-95">
-                <Sparkles className="mr-1.5 h-4 w-4" /> Create Room
+              <Button
+                type="submit"
+                disabled={!isValid || submitting}
+                className="min-h-11 bg-gradient-primary text-primary-foreground shadow-glow hover:opacity-95"
+              >
+                {submitting ? (
+                  <ButtonLoader label="Creating Room..." />
+                ) : (
+                  <>
+                    <Sparkles className="mr-1.5 h-4 w-4" /> Create Room
+                  </>
+                )}
               </Button>
             </div>
           </form>
@@ -174,13 +211,27 @@ function CreateRoom() {
   );
 }
 
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+function Field({
+  label,
+  htmlFor,
+  error,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="space-y-2">
-      <Label className="text-sm font-medium">{label}</Label>
+      <Label htmlFor={htmlFor} className="text-sm font-medium">
+        {label}
+      </Label>
       {children}
       {error && (
-        <p className="text-xs text-destructive" role="alert">{error}</p>
+        <p id={htmlFor ? `${htmlFor}-error` : undefined} className="text-xs text-destructive" role="alert">
+          {error}
+        </p>
       )}
     </div>
   );
@@ -193,7 +244,7 @@ function VisibilityOption({
     <label
       htmlFor={id}
       className={cn(
-        "flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors",
+        "flex min-h-11 cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors",
         active ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50",
       )}
     >
@@ -223,7 +274,7 @@ function ModeOption({
         disabled && "cursor-not-allowed border-border/60 opacity-70",
       )}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-semibold">{title}</span>
         {disabled && <Badge variant="secondary" className="text-[10px]">Coming Soon</Badge>}
       </div>
