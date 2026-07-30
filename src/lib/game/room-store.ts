@@ -48,6 +48,12 @@ export function useRoom() {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
 
+/** Imperative read for non-reactive callers. */
+export function getRoomSnapshot() {
+  hydrate();
+  return state;
+}
+
 export function generateRoomCode() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let out = "";
@@ -94,6 +100,12 @@ export function joinRoom(playerName: string, code: string): RoomState {
       createdAt: Date.now(),
     };
   }
+  if (state.status === "in-game") {
+    throw new Error("ROOM_LOCKED");
+  }
+  if (state.players.length >= state.maxPlayers) {
+    throw new Error("ROOM_FULL");
+  }
   const player: Player = {
     id: uid(),
     name: playerName,
@@ -121,6 +133,40 @@ export function updateRoomSettings(
   if (!state) return;
   state = { ...state, ...patch };
   emit();
+}
+
+const SIM_NAMES = ["Rahul", "Meera", "Kabir", "Ananya", "Vikram", "Zoya"];
+
+/**
+ * Until a live socket backend exists, empty seats are filled with simulated
+ * opponents so a full match can always be played.
+ */
+export function fillWithSimulatedPlayers(target?: number) {
+  if (!state) return;
+  const seats = Math.min(target ?? state.maxPlayers, state.maxPlayers);
+  if (state.players.length >= seats) return;
+  const extras: Player[] = [];
+  for (let i = state.players.length; i < seats; i += 1) {
+    extras.push({
+      id: uid(),
+      name: SIM_NAMES[i % SIM_NAMES.length],
+      isHost: false,
+      isReady: true,
+      connection: "connected",
+    });
+  }
+  state = { ...state, players: [...state.players, ...extras] };
+  emit();
+}
+
+export function setRoomStatus(status: "lobby" | "in-game") {
+  if (!state) return;
+  state = { ...state, status };
+  emit();
+}
+
+export function isRoomLocked() {
+  return state?.status === "in-game";
 }
 
 export function leaveRoom() {
