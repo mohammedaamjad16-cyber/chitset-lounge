@@ -127,3 +127,15 @@ export function leaveRoom() {
   state = null;
   emit();
 }
+
+/** Identity of the player on this device (until auth exists). */
+const ME_KEY = "chitset:me";
+
+export function setMeId(id: string) {
+  if (typeof window !== "undefined") window.localStorage.setItem(ME_KEY, id);
+}
+
+export function getMeId(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(ME_KEY);
+}
