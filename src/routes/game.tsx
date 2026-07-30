@@ -12,6 +12,7 @@ import { PlayerHand } from "@/components/game/player-hand";
 import { ResultsScreen } from "@/components/game/results-screen";
 import { getCategory } from "@/lib/game/categories";
 import { addHistoryEntry } from "@/lib/game/history";
+import { recordMatchResult } from "@/lib/game/progression";
 import { useGameSound } from "@/hooks/use-game-sound";
 import { getMeId, isOnlineMode, useRoom } from "@/lib/game/room-store";
 import { setOnlineRoomStatus } from "@/lib/realtime/room-sync";
@@ -99,6 +100,20 @@ function GameRoute() {
       durationMs: (match.endedAt ?? Date.now()) - match.startedAt,
       turns: match.turns,
       playedAt: Date.now(),
+    });
+    void recordMatchResult({
+      roomCode: match.roomCode,
+      categoryId: match.categoryId,
+      winnerName: match.players.find((p) => p.id === match.winnerId)?.name ?? "Player",
+      winnerIsMe: match.winnerId === getMeId(),
+      winningLabel: match.winningChits[0]?.label ?? "—",
+      players: match.players.map((p) => p.name),
+      durationMs: (match.endedAt ?? Date.now()) - match.startedAt,
+      turns: match.turns,
+    }).then((outcome) => {
+      if (!outcome) return;
+      if (outcome.xpAwarded) notify.success(`+${outcome.xpAwarded} XP`, outcome.newLevel ? `Level ${outcome.newLevel} reached!` : undefined);
+      outcome.unlocked.forEach((code) => notify.success("Achievement unlocked", code.replace(/_/g, " ")));
     });
   }, [match, play]);
 
