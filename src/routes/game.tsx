@@ -13,7 +13,12 @@ import { ResultsScreen } from "@/components/game/results-screen";
 import { getCategory } from "@/lib/game/categories";
 import { addHistoryEntry } from "@/lib/game/history";
 import { useGameSound } from "@/hooks/use-game-sound";
-import { getMeId, useRoom } from "@/lib/game/room-store";
+import { getMeId, isOnlineMode, useRoom } from "@/lib/game/room-store";
+import { setOnlineRoomStatus } from "@/lib/realtime/room-sync";
+import { netCallShow, netPassChit, useMatchSync } from "@/lib/realtime/match-sync";
+import { ChatSheet } from "@/components/chat/chat-sheet";
+import { ReactionBar } from "@/components/chat/reaction-bar";
+import { useReactions } from "@/lib/chat/use-reactions";
 import {
   callShow,
   clearInvalidShow,
@@ -55,9 +60,14 @@ function GameRoute() {
   const [selected, setSelected] = useState<string | null>(null);
   const [leaveOpen, setLeaveOpen] = useState(false);
   const savedRef = useRef<string | null>(null);
+  const [online, setOnline] = useState(false);
+  const isHost = !!room && !!meId && room.hostId === meId;
+  useMatchSync(room?.code ?? null, isHost, online);
+  const { reactions, sendReaction } = useReactions(online ? (room?.code ?? "") : "", meId ?? "");
 
   useEffect(() => {
     setMeId(getMeId());
+    setOnline(isOnlineMode());
     const t = setTimeout(() => setHydrating(false), 250);
     return () => clearTimeout(t);
   }, []);
@@ -65,6 +75,7 @@ function GameRoute() {
   // Start a match automatically when arriving from the lobby.
   useEffect(() => {
     if (hydrating || match || !room) return;
+    if (isOnlineMode() && room.hostId !== getMeId()) return; // guests wait for the host snapshot
     startMatch(room, getMeId());
   }, [hydrating, match, room]);
 
@@ -130,11 +141,16 @@ function GameRoute() {
           meId={me?.id ?? null}
           onPlayAgain={() => {
             play("click");
+            if (online && !isHost) {
+              notify.info("Waiting for the host", "Only the host can deal a new match.");
+              return;
+            }
             startMatch(room, meId);
             setSelected(null);
             notify.success("New match", "Fresh chits are on the table.");
           }}
           onBackToLobby={() => {
+            if (online && isHost) void setOnlineRoomStatus(room.code, "lobby");
             endMatch();
             navigate({ to: "/lobby" });
           }}
@@ -146,13 +162,14 @@ function GameRoute() {
   const handlePass = () => {
     if (!selected || !me) return;
     play("pass");
-    passChit(me.id, selected);
+    netPassChit(me.id, selected);
     setSelected(null);
   };
 
   const handleShow = () => {
     if (!me) return;
-    const result = callShow(me.id);
+    const result = netCallShow(me.id);
+    if (result.pending) return;
     if (result.ok) {
       play("winner");
     } else {
@@ -185,6 +202,7 @@ function GameRoute() {
             <Badge variant={isMyTurn ? "default" : "secondary"} className="text-[11px]">
               {isMyTurn ? "Your turn" : `${activePlayer?.name ?? "Player"}'s turn`}
             </Badge>
+            {online && meId && <ChatSheet roomCode={room.code} selfId={meId} />}
             <Button variant="outline" size="sm" onClick={() => setLeaveOpen(true)}>
               <LogOut className="mr-1.5 h-4 w-4" /> Leave
             </Button>
@@ -193,7 +211,13 @@ function GameRoute() {
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
           <GlassCard className="p-4 sm:p-6">
-            <GameTable match={match} meId={me?.id ?? null} categoryName={categoryName} />
+            <GameTable
+              match={match}
+              meId={me?.id ?? null}
+              categoryName={categoryName}
+              reactions={online ? reactions : undefined}
+            />
+            {online && <ReactionBar onSend={sendReaction} className="mt-4" />}
           </GlassCard>
 
           <div className="space-y-6">
@@ -261,6 +285,7 @@ function GameRoute() {
         confirmLabel="Leave Match"
         destructive
         onConfirm={() => {
+          if (online && isHost) void setOnlineRoomStatus(room.code, "lobby");
           endMatch();
           notify.info("You left the match");
           navigate({ to: "/lobby" });
