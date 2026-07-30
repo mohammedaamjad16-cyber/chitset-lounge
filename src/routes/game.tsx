@@ -20,10 +20,8 @@ import { ChatSheet } from "@/components/chat/chat-sheet";
 import { ReactionBar } from "@/components/chat/reaction-bar";
 import { useReactions } from "@/lib/chat/use-reactions";
 import {
-  callShow,
   clearInvalidShow,
   endMatch,
-  passChit,
   revealAll,
   revealChit,
   startMatch,
