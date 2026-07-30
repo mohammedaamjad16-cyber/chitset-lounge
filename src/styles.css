@@ -239,3 +239,78 @@
     letter-spacing: -0.02em;
   }
 }
+
+/*
+ * Theme palettes — layered on top of the light/dark base themes.
+ * Applied via <html data-palette="...">; "classic" keeps the base tokens.
+ */
+[data-palette="midnight"] {
+  --primary: oklch(0.58 0.19 255);
+  --primary-glow: oklch(0.72 0.16 240);
+  --secondary: oklch(0.58 0.2 275);
+  --accent: oklch(0.75 0.13 225);
+  --ring: oklch(0.58 0.19 255);
+}
+[data-palette="midnight"].dark {
+  --background: oklch(0.17 0.035 260);
+  --card: oklch(0.23 0.035 260);
+  --popover: oklch(0.23 0.035 260);
+  --primary: oklch(0.68 0.16 250);
+  --secondary: oklch(0.68 0.18 275);
+  --accent: oklch(0.8 0.12 225);
+}
+[data-palette="forest"] {
+  --primary: oklch(0.52 0.15 150);
+  --primary-glow: oklch(0.68 0.16 145);
+  --secondary: oklch(0.62 0.16 130);
+  --accent: oklch(0.78 0.16 80);
+  --ring: oklch(0.52 0.15 150);
+}
+[data-palette="forest"].dark {
+  --background: oklch(0.2 0.03 160);
+  --card: oklch(0.26 0.03 160);
+  --popover: oklch(0.26 0.03 160);
+  --primary: oklch(0.68 0.16 150);
+  --secondary: oklch(0.74 0.16 130);
+  --accent: oklch(0.82 0.16 80);
+}
+[data-palette="ocean"] {
+  --primary: oklch(0.58 0.13 215);
+  --primary-glow: oklch(0.72 0.13 205);
+  --secondary: oklch(0.62 0.14 235);
+  --accent: oklch(0.72 0.13 180);
+  --ring: oklch(0.58 0.13 215);
+}
+[data-palette="ocean"].dark {
+  --background: oklch(0.2 0.035 230);
+  --card: oklch(0.26 0.035 230);
+  --popover: oklch(0.26 0.035 230);
+  --primary: oklch(0.7 0.13 215);
+  --secondary: oklch(0.72 0.14 235);
+  --accent: oklch(0.78 0.13 180);
+}
+[data-palette="sunset"] {
+  --primary: oklch(0.62 0.19 40);
+  --primary-glow: oklch(0.72 0.19 25);
+  --secondary: oklch(0.58 0.22 5);
+  --accent: oklch(0.78 0.17 70);
+  --ring: oklch(0.62 0.19 40);
+}
+[data-palette="sunset"].dark {
+  --background: oklch(0.2 0.04 30);
+  --card: oklch(0.26 0.04 30);
+  --popover: oklch(0.26 0.04 30);
+  --primary: oklch(0.72 0.18 45);
+  --secondary: oklch(0.68 0.21 10);
+  --accent: oklch(0.82 0.16 70);
+}
+
+[data-palette] {
+  --gradient-hero: radial-gradient(1200px 600px at 20% 10%, var(--primary) 0%, transparent 0%),
+                   radial-gradient(1200px 600px at 20% 10%, color-mix(in oklab, var(--primary) 22%, transparent), transparent 60%),
+                   radial-gradient(1000px 500px at 80% 20%, color-mix(in oklab, var(--secondary) 20%, transparent), transparent 60%),
+                   radial-gradient(800px 500px at 60% 100%, color-mix(in oklab, var(--accent) 15%, transparent), transparent 60%);
+  --gradient-primary: linear-gradient(135deg, var(--primary), var(--secondary));
+  --gradient-accent: linear-gradient(135deg, var(--primary), var(--accent));
+  --shadow-glow: 0 20px 60px -20px color-mix(in oklab, var(--primary) 55%, transparent);
+}

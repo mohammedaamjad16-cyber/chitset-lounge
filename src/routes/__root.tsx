@@ -16,6 +16,8 @@ import { SiteLayout } from "@/layouts/site-layout";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { AuthProvider } from "@/lib/auth/auth-context";
+import { hydrateSettings } from "@/lib/settings/settings-store";
 
 function NotFoundComponent() {
   return (
@@ -125,15 +127,21 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const isMobile = useIsMobile();
 
+  useEffect(() => {
+    hydrateSettings();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <TooltipProvider delayDuration={200}>
-          <SiteLayout>
-            <Outlet />
-          </SiteLayout>
-          <Toaster position={isMobile ? "bottom-center" : "top-right"} richColors closeButton />
-        </TooltipProvider>
+        <AuthProvider>
+          <TooltipProvider delayDuration={200}>
+            <SiteLayout>
+              <Outlet />
+            </SiteLayout>
+            <Toaster position={isMobile ? "bottom-center" : "top-right"} richColors closeButton />
+          </TooltipProvider>
+        </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

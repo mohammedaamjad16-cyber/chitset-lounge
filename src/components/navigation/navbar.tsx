@@ -7,9 +7,11 @@ import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { AccountMenu } from "@/components/navigation/account-menu";
 
 const NAV_LINKS = [
   { to: "/", label: "Home" },
+  { to: "/leaderboard", label: "Leaderboard" },
   { to: "/about", label: "About" },
 ] as const;
 
@@ -80,6 +82,9 @@ export function Navbar() {
               </Link>
             </Button>
           </div>
+          <div className="hidden md:block">
+            <AccountMenu />
+          </div>
           <ThemeToggle />
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
@@ -112,6 +117,9 @@ export function Navbar() {
                   ))}
                 </div>
               </AnimatePresence>
+              <div className="mt-4">
+                <AccountMenu onNavigate={() => setMobileOpen(false)} />
+              </div>
               <div className="mt-6 flex flex-col gap-2">
                 <Button asChild variant="outline" onClick={() => setMobileOpen(false)}>
                   <Link to="/join-room">

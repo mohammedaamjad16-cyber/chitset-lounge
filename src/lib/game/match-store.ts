@@ -81,6 +81,40 @@ function persist() {
 function emit() {
   persist();
   listeners.forEach((l) => l());
+  if (net?.isHost) net.broadcast(state);
+}
+
+/* ------------------------------------------------------------------ */
+/* Network transport — host authoritative, guests apply snapshots      */
+/* ------------------------------------------------------------------ */
+
+export interface MatchTransport {
+  isHost: boolean;
+  broadcast: (state: MatchState | null) => void;
+}
+
+let net: MatchTransport | null = null;
+
+export function setMatchTransport(transport: MatchTransport | null) {
+  net = transport;
+}
+
+export function getMatchTransport() {
+  return net;
+}
+
+/** Apply an authoritative snapshot received from the host. */
+export function applyMatchSnapshot(next: MatchState | null) {
+  hydrated = true;
+  state = next;
+  persist();
+  listeners.forEach((l) => l());
+}
+
+/** Imperative read for non-reactive callers. */
+export function getMatchSnapshot() {
+  hydrate();
+  return state;
 }
 
 function hydrate() {
@@ -131,12 +165,17 @@ function log(text: string) {
 /* Actions                                                             */
 /* ------------------------------------------------------------------ */
 
-export function startMatch(room: RoomState, meId: string | null) {
+export function startMatch(
+  room: RoomState,
+  meId: string | null,
+  options: { bots?: boolean } = {},
+) {
+  const bots = options.bots ?? true;
   const players: MatchPlayer[] = room.players.map((p) => ({
     id: p.id,
     name: p.name,
     isHost: p.isHost,
-    isBot: p.id !== meId,
+    isBot: bots && p.id !== meId,
     connected: p.connection !== "disconnected",
   }));
 
@@ -300,6 +339,8 @@ function autoPass(playerId: string) {
 
 function tick() {
   if (!state) return;
+  // Only the authority drives the clock; guests render host snapshots.
+  if (net && !net.isHost) return;
   const now = Date.now();
 
   if (state.phase === "dealing") {

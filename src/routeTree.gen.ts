@@ -9,16 +9,38 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as LobbyRouteImport } from './routes/lobby'
+import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as JoinRoomRouteImport } from './routes/join-room'
+import { Route as HistoryRouteImport } from './routes/history'
 import { Route as GameRouteImport } from './routes/game'
+import { Route as FriendsRouteImport } from './routes/friends'
 import { Route as CreateRoomRouteImport } from './routes/create-room'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AchievementsRouteImport } from './routes/achievements'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LobbyRoute = LobbyRouteImport.update({
   id: '/lobby',
   path: '/lobby',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeaderboardRoute = LeaderboardRouteImport.update({
+  id: '/leaderboard',
+  path: '/leaderboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const JoinRoomRoute = JoinRoomRouteImport.update({
@@ -26,14 +48,34 @@ const JoinRoomRoute = JoinRoomRouteImport.update({
   path: '/join-room',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HistoryRoute = HistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const GameRoute = GameRouteImport.update({
   id: '/game',
   path: '/game',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FriendsRoute = FriendsRouteImport.update({
+  id: '/friends',
+  path: '/friends',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CreateRoomRoute = CreateRoomRouteImport.update({
   id: '/create-room',
   path: '/create-room',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AchievementsRoute = AchievementsRouteImport.update({
+  id: '/achievements',
+  path: '/achievements',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -50,59 +92,141 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/achievements': typeof AchievementsRoute
+  '/auth': typeof AuthRoute
   '/create-room': typeof CreateRoomRoute
+  '/friends': typeof FriendsRoute
   '/game': typeof GameRoute
+  '/history': typeof HistoryRoute
   '/join-room': typeof JoinRoomRoute
+  '/leaderboard': typeof LeaderboardRoute
   '/lobby': typeof LobbyRoute
+  '/profile': typeof ProfileRoute
+  '/settings': typeof SettingsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/achievements': typeof AchievementsRoute
+  '/auth': typeof AuthRoute
   '/create-room': typeof CreateRoomRoute
+  '/friends': typeof FriendsRoute
   '/game': typeof GameRoute
+  '/history': typeof HistoryRoute
   '/join-room': typeof JoinRoomRoute
+  '/leaderboard': typeof LeaderboardRoute
   '/lobby': typeof LobbyRoute
+  '/profile': typeof ProfileRoute
+  '/settings': typeof SettingsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/achievements': typeof AchievementsRoute
+  '/auth': typeof AuthRoute
   '/create-room': typeof CreateRoomRoute
+  '/friends': typeof FriendsRoute
   '/game': typeof GameRoute
+  '/history': typeof HistoryRoute
   '/join-room': typeof JoinRoomRoute
+  '/leaderboard': typeof LeaderboardRoute
   '/lobby': typeof LobbyRoute
+  '/profile': typeof ProfileRoute
+  '/settings': typeof SettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/create-room' | '/game' | '/join-room' | '/lobby'
+  fullPaths:
+    | '/'
+    | '/about'
+    | '/achievements'
+    | '/auth'
+    | '/create-room'
+    | '/friends'
+    | '/game'
+    | '/history'
+    | '/join-room'
+    | '/leaderboard'
+    | '/lobby'
+    | '/profile'
+    | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/create-room' | '/game' | '/join-room' | '/lobby'
+  to:
+    | '/'
+    | '/about'
+    | '/achievements'
+    | '/auth'
+    | '/create-room'
+    | '/friends'
+    | '/game'
+    | '/history'
+    | '/join-room'
+    | '/leaderboard'
+    | '/lobby'
+    | '/profile'
+    | '/settings'
   id:
     | '__root__'
     | '/'
     | '/about'
+    | '/achievements'
+    | '/auth'
     | '/create-room'
+    | '/friends'
     | '/game'
+    | '/history'
     | '/join-room'
+    | '/leaderboard'
     | '/lobby'
+    | '/profile'
+    | '/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  AchievementsRoute: typeof AchievementsRoute
+  AuthRoute: typeof AuthRoute
   CreateRoomRoute: typeof CreateRoomRoute
+  FriendsRoute: typeof FriendsRoute
   GameRoute: typeof GameRoute
+  HistoryRoute: typeof HistoryRoute
   JoinRoomRoute: typeof JoinRoomRoute
+  LeaderboardRoute: typeof LeaderboardRoute
   LobbyRoute: typeof LobbyRoute
+  ProfileRoute: typeof ProfileRoute
+  SettingsRoute: typeof SettingsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/lobby': {
       id: '/lobby'
       path: '/lobby'
       fullPath: '/lobby'
       preLoaderRoute: typeof LobbyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/leaderboard': {
+      id: '/leaderboard'
+      path: '/leaderboard'
+      fullPath: '/leaderboard'
+      preLoaderRoute: typeof LeaderboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/join-room': {
@@ -112,6 +236,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof JoinRoomRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/history': {
+      id: '/history'
+      path: '/history'
+      fullPath: '/history'
+      preLoaderRoute: typeof HistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/game': {
       id: '/game'
       path: '/game'
@@ -119,11 +250,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GameRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/friends': {
+      id: '/friends'
+      path: '/friends'
+      fullPath: '/friends'
+      preLoaderRoute: typeof FriendsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/create-room': {
       id: '/create-room'
       path: '/create-room'
       fullPath: '/create-room'
       preLoaderRoute: typeof CreateRoomRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/achievements': {
+      id: '/achievements'
+      path: '/achievements'
+      fullPath: '/achievements'
+      preLoaderRoute: typeof AchievementsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -146,10 +298,17 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  AchievementsRoute: AchievementsRoute,
+  AuthRoute: AuthRoute,
   CreateRoomRoute: CreateRoomRoute,
+  FriendsRoute: FriendsRoute,
   GameRoute: GameRoute,
+  HistoryRoute: HistoryRoute,
   JoinRoomRoute: JoinRoomRoute,
+  LeaderboardRoute: LeaderboardRoute,
   LobbyRoute: LobbyRoute,
+  ProfileRoute: ProfileRoute,
+  SettingsRoute: SettingsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

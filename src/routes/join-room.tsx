@@ -9,7 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ButtonLoader } from "@/components/shared/loaders";
 import { notify } from "@/lib/notify";
-import { joinRoom, setMeId } from "@/lib/game/room-store";
+import { joinRoom, setMeId, setOnlineMode } from "@/lib/game/room-store";
+import { joinOnlineRoom } from "@/lib/realtime/room-sync";
+import { useAuth } from "@/lib/auth/auth-context";
 
 export const Route = createFileRoute("/join-room")({
   head: () => ({
@@ -45,6 +47,7 @@ function JoinRoom() {
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
+  const { user, profile } = useAuth();
 
   const isValid = useMemo(() => schema.safeParse(form).success, [form]);
 
@@ -66,26 +69,41 @@ function JoinRoom() {
     }
 
     setSubmitting(true);
-    setTimeout(() => {
+    void (async () => {
       try {
-        const room = joinRoom(form.playerName.trim(), form.roomCode);
-        const me = room.players[room.players.length - 1];
-        setMeId(me.id);
-        setSubmitting(false);
-        notify.success("Joined successfully", `Welcome to ${room.name}.`);
+        let roomName: string;
+        if (user) {
+          const room = await joinOnlineRoom(form.roomCode, {
+            id: user.id,
+            name: profile?.username ?? form.playerName.trim(),
+            emoji: profile?.avatar_emoji,
+          });
+          roomName = room.name;
+        } else {
+          await new Promise((r) => setTimeout(r, 700));
+          const room = joinRoom(form.playerName.trim(), form.roomCode);
+          const me = room.players[room.players.length - 1];
+          setMeId(me.id);
+          setOnlineMode(false);
+          roomName = room.name;
+        }
+        notify.success("Joined successfully", `Welcome to ${roomName}.`);
         navigate({ to: "/lobby" });
       } catch (err) {
-        setSubmitting(false);
         const code = err instanceof Error ? err.message : "UNKNOWN";
         if (code === "ROOM_LOCKED") {
           notify.error("Match in progress", "This room is locked until the current match ends.");
         } else if (code === "ROOM_FULL") {
           notify.error("Room is full", "Every seat at this table is taken.");
+        } else if (code === "ROOM_NOT_FOUND") {
+          notify.error("Room not found", "Double-check the code and try again.");
         } else {
           notify.error("Couldn't join", "Something unexpected happened. Try again.");
         }
+      } finally {
+        setSubmitting(false);
       }
-    }, 900);
+    })();
   };
 
   return (

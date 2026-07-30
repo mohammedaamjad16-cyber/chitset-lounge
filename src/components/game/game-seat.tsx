@@ -9,6 +9,9 @@ import { cn } from "@/lib/utils";
 const initials = (name: string) =>
   name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
 
+import { ReactionOverlay } from "@/components/chat/reaction-overlay";
+import type { Reaction } from "@/lib/chat/use-reactions";
+
 interface GameSeatProps {
   player: MatchPlayer;
   handCount: number;
@@ -17,6 +20,7 @@ interface GameSeatProps {
   turnStartedAt: number;
   turnDurationMs: number;
   compact?: boolean;
+  reactions?: Reaction[];
 }
 
 export function GameSeat({
@@ -27,6 +31,7 @@ export function GameSeat({
   turnStartedAt,
   turnDurationMs,
   compact,
+  reactions,
 }: GameSeatProps) {
   return (
     <motion.div
@@ -34,11 +39,14 @@ export function GameSeat({
       animate={isActive ? { scale: 1.04 } : { scale: 1 }}
       transition={{ type: "spring", stiffness: 300, damping: 24 }}
       className={cn(
-        "flex w-32 flex-col items-center gap-1.5 rounded-2xl border bg-card/80 p-2.5 text-center backdrop-blur transition-colors sm:w-36",
+        "relative flex w-32 flex-col items-center gap-1.5 rounded-2xl border bg-card/80 p-2.5 text-center backdrop-blur transition-colors sm:w-36",
         isActive ? "border-primary shadow-glow" : "border-border",
         compact && "w-full",
       )}
     >
+      {reactions && reactions.length > 0 && (
+        <ReactionOverlay reactions={reactions} playerId={player.id} />
+      )}
       <div className="flex items-center gap-2">
         <div className="relative">
           <Avatar className="h-9 w-9 border border-border">
