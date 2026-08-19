@@ -96,6 +96,14 @@ function subscribe(cb: () => void) {
   return () => listeners.delete(cb);
 }
 
+/** Public subscription for non-React consumers (e.g. the audio manager). */
+export function subscribeSettings(cb: () => void) {
+  listeners.add(cb);
+  return () => {
+    listeners.delete(cb);
+  };
+}
+
 export function useSettings() {
   return useSyncExternalStore(
     subscribe,

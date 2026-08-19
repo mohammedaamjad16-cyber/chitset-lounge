@@ -1,4 +1,4 @@
-import { getSettings } from "@/lib/settings/settings-store";
+import { getSettings, subscribeSettings } from "@/lib/settings/settings-store";
 
 /**
  * Centralised audio manager. Every sound in the app goes through `playCue`.
@@ -130,9 +130,15 @@ function audioContext(): AudioContext | null {
 }
 
 /** Call once from a user gesture so browsers allow playback. */
+let settingsBound = false;
+
 export function unlockAudio() {
   unlocked = true;
   audioContext();
+  if (!settingsBound) {
+    settingsBound = true;
+    subscribeSettings(() => syncMusic());
+  }
   syncMusic();
 }
 
