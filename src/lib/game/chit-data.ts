@@ -4,6 +4,8 @@
  * No gameplay logic depends on these values.
  */
 
+import { CUSTOM_PREFIX, customChitItems, getCustomCategory } from "./custom-categories";
+
 export interface ChitItem {
   id: string;
   label: string;
@@ -122,5 +124,10 @@ export const CHIT_ITEMS: Record<string, ChitItem[]> = {
 export const FALLBACK_ITEMS = CHIT_ITEMS.fruits;
 
 export function getItemsForCategory(categoryId: string): ChitItem[] {
+  if (categoryId.startsWith(CUSTOM_PREFIX)) {
+    const custom = getCustomCategory(categoryId);
+    if (custom && custom.names.length > 0) return customChitItems(custom);
+    return FALLBACK_ITEMS;
+  }
   return CHIT_ITEMS[categoryId] ?? FALLBACK_ITEMS;
 }
