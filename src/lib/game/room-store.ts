@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
-import type { CreateRoomInput, Player, RoomState } from "./types";
+import type { CreateRoomInput, Player, RoomState, TeamId } from "./types";
+import { BOT_NAMES } from "./bots";
 
 /**
  * Local, in-memory + localStorage backed room store.
@@ -73,6 +74,8 @@ export function createRoom(input: CreateRoomInput): RoomState {
     categoryId: input.categoryId,
     visibility: input.visibility,
     gameMode: input.gameMode,
+    allowBots: input.allowBots ?? true,
+    botDifficulty: input.botDifficulty ?? "normal",
     players: [
       { id: hostId, name: input.hostName, isHost: true, isReady: false, connection: "connected" },
     ],
@@ -128,10 +131,78 @@ export function toggleReady(playerId: string) {
 }
 
 export function updateRoomSettings(
-  patch: Partial<Pick<RoomState, "maxPlayers" | "categoryId" | "visibility">>,
+  patch: Partial<
+    Pick<
+      RoomState,
+      "maxPlayers" | "categoryId" | "visibility" | "gameMode" | "allowBots" | "botDifficulty"
+    >
+  >,
 ) {
   if (!state) return;
   state = { ...state, ...patch };
+  emit();
+}
+
+/* ------------------------------------------------------------------ */
+/* Bots                                                                */
+/* ------------------------------------------------------------------ */
+
+/** Seats bots (clearly marked) until the room reaches `target` players. */
+export function addBots(target?: number): number {
+  if (!state) return 0;
+  const seats = Math.min(target ?? state.maxPlayers, state.maxPlayers);
+  if (state.players.length >= seats) return 0;
+  const taken = new Set(state.players.map((p) => p.name));
+  const extras: Player[] = [];
+  for (let i = state.players.length; i < seats; i += 1) {
+    const name = BOT_NAMES.find((n) => !taken.has(n)) ?? `ChitBot ${i + 1}`;
+    taken.add(name);
+    extras.push({
+      id: uid(),
+      name,
+      isHost: false,
+      isReady: true,
+      connection: "connected",
+      isBot: true,
+    });
+  }
+  state = { ...state, players: [...state.players, ...extras] };
+  emit();
+  return extras.length;
+}
+
+export function removeBots() {
+  if (!state) return;
+  state = { ...state, players: state.players.filter((p) => !p.isBot) };
+  emit();
+}
+
+/* ------------------------------------------------------------------ */
+/* Teams                                                              */
+/* ------------------------------------------------------------------ */
+
+export function setPlayerTeam(playerId: string, team: TeamId) {
+  if (!state) return;
+  state = {
+    ...state,
+    players: state.players.map((p) => (p.id === playerId ? { ...p, team } : p)),
+  };
+  emit();
+}
+
+/** Alternating assignment keeps both teams as balanced as possible. */
+export function autoBalanceTeams() {
+  if (!state) return;
+  state = {
+    ...state,
+    players: state.players.map((p, i) => ({ ...p, team: (i % 2 === 0 ? "A" : "B") as TeamId })),
+  };
+  emit();
+}
+
+export function clearTeams() {
+  if (!state) return;
+  state = { ...state, players: state.players.map(({ team: _team, ...p }) => p) };
   emit();
 }
 
@@ -153,6 +224,7 @@ export function fillWithSimulatedPlayers(target?: number) {
       isHost: false,
       isReady: true,
       connection: "connected",
+      isBot: true,
     });
   }
   state = { ...state, players: [...state.players, ...extras] };
