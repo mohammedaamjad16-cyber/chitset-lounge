@@ -5,23 +5,35 @@ export type PaletteId = "classic" | "midnight" | "forest" | "ocean" | "sunset";
 export interface Settings {
   palette: PaletteId;
   soundEnabled: boolean;
-  soundVolume: number; // 0..1
+  soundVolume: number; // sound-effects volume, 0..1
+  masterVolume: number; // 0..1
   musicEnabled: boolean;
+  musicVolume: number; // 0..1
+  muteAll: boolean;
   reducedMotion: boolean;
   chatEnabled: boolean;
   showReactions: boolean;
   confirmLeave: boolean;
+  animationsEnabled: boolean;
+  allowBots: boolean;
+  botDifficulty: "easy" | "normal" | "hard";
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   palette: "classic",
   soundEnabled: true,
   soundVolume: 0.5,
+  masterVolume: 0.8,
   musicEnabled: false,
+  musicVolume: 0.4,
+  muteAll: false,
   reducedMotion: false,
   chatEnabled: true,
   showReactions: true,
   confirmLeave: true,
+  animationsEnabled: true,
+  allowBots: true,
+  botDifficulty: "normal",
 };
 
 export const PALETTES: { id: PaletteId; name: string; swatch: [string, string, string] }[] = [
@@ -82,6 +94,14 @@ export function getSettings() {
 function subscribe(cb: () => void) {
   listeners.add(cb);
   return () => listeners.delete(cb);
+}
+
+/** Public subscription for non-React consumers (e.g. the audio manager). */
+export function subscribeSettings(cb: () => void) {
+  listeners.add(cb);
+  return () => {
+    listeners.delete(cb);
+  };
 }
 
 export function useSettings() {
