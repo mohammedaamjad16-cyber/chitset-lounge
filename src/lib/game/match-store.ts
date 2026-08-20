@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
-import type { RoomState } from "./types";
+import type { RoomState, TeamId } from "./types";
+import { botChoosePass, botDelayMs, type BotDifficulty } from "./bots";
 import {
   dealChits,
   generateChits,
@@ -22,6 +23,7 @@ export interface MatchPlayer {
   isHost: boolean;
   isBot: boolean;
   connected: boolean;
+  team?: TeamId;
 }
 
 export interface PassInFlight {
@@ -55,6 +57,10 @@ export interface MatchState {
   winnerId: string | null;
   winningChits: Chit[];
   invalidShowAt: number | null;
+  /** Who attempted the rejected show — drives the shake feedback. */
+  invalidShowBy?: string | null;
+  gameMode?: RoomState["gameMode"];
+  botDifficulty: BotDifficulty;
   log: LogEntry[];
 }
 
@@ -170,13 +176,16 @@ export function startMatch(
   meId: string | null,
   options: { bots?: boolean } = {},
 ) {
-  const bots = options.bots ?? true;
+  // Offline play still needs opponents that act, so unknown seats fall back to
+  // bot control. Explicitly seated bots are always bot-controlled.
+  const autoFill = options.bots ?? true;
   const players: MatchPlayer[] = room.players.map((p) => ({
     id: p.id,
     name: p.name,
     isHost: p.isHost,
-    isBot: bots && p.id !== meId,
+    isBot: p.isBot === true || (autoFill && p.id !== meId),
     connected: p.connection !== "disconnected",
+    team: p.team,
   }));
 
   const chits = generateChits(room.categoryId, players.length);
@@ -200,6 +209,9 @@ export function startMatch(
     winnerId: null,
     winningChits: [],
     invalidShowAt: null,
+    invalidShowBy: null,
+    gameMode: room.gameMode,
+    botDifficulty: room.botDifficulty ?? "normal",
     log: [{ id: uid(), text: "Chits shuffled and dealt.", at: Date.now() }],
   };
   emit();
@@ -283,7 +295,7 @@ export function callShow(playerId: string): { ok: boolean; reason?: string } {
   const hand = state.hands[playerId] ?? [];
 
   if (!isWinningHand(hand)) {
-    state = { ...state, invalidShowAt: Date.now() };
+    state = { ...state, invalidShowAt: Date.now(), invalidShowBy: playerId };
     const who = state.players.find((p) => p.id === playerId);
     log(`${who?.name ?? "Player"} called SHOW — not four matching chits.`);
     emit();
@@ -317,7 +329,7 @@ function finish(winnerId: string, hand: Chit[]) {
 
 export function clearInvalidShow() {
   if (!state?.invalidShowAt) return;
-  state = { ...state, invalidShowAt: null };
+  state = { ...state, invalidShowAt: null, invalidShowBy: null };
   emit();
 }
 
@@ -334,6 +346,13 @@ export function endMatch() {
 function autoPass(playerId: string) {
   if (!state) return;
   const chit = pickChitToPass(state.hands[playerId] ?? []);
+  if (chit) passChit(playerId, chit.id);
+}
+
+/** A bot decides using only its own hand, then acts through the normal action. */
+function botPass(playerId: string, difficulty: BotDifficulty) {
+  if (!state) return;
+  const chit = botChoosePass(state.hands[playerId] ?? [], difficulty);
   if (chit) passChit(playerId, chit.id);
 }
 
@@ -365,9 +384,16 @@ function tick() {
     return;
   }
 
-  if (active.isBot && elapsed > 1300 + (active.id.charCodeAt(0) % 9) * 120) {
-    autoPass(active.id);
-    return;
+  if (active.isBot) {
+    const difficulty = state.botDifficulty ?? "normal";
+    const think = Math.min(
+      state.turnDurationMs - 600,
+      botDelayMs(difficulty, active.id.charCodeAt(0) * 7 + active.id.length * 13),
+    );
+    if (elapsed > think) {
+      botPass(active.id, difficulty);
+      return;
+    }
   }
 
   // Timer expiry — a random chit leaves the hand automatically.
