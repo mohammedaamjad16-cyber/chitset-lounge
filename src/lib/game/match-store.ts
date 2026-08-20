@@ -295,7 +295,7 @@ export function callShow(playerId: string): { ok: boolean; reason?: string } {
   const hand = state.hands[playerId] ?? [];
 
   if (!isWinningHand(hand)) {
-    state = { ...state, invalidShowAt: Date.now() };
+    state = { ...state, invalidShowAt: Date.now(), invalidShowBy: playerId };
     const who = state.players.find((p) => p.id === playerId);
     log(`${who?.name ?? "Player"} called SHOW — not four matching chits.`);
     emit();
@@ -329,7 +329,7 @@ function finish(winnerId: string, hand: Chit[]) {
 
 export function clearInvalidShow() {
   if (!state?.invalidShowAt) return;
-  state = { ...state, invalidShowAt: null };
+  state = { ...state, invalidShowAt: null, invalidShowBy: null };
   emit();
 }
 
