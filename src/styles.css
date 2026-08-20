@@ -210,6 +210,32 @@
 @utility shadow-soft {
   box-shadow: var(--shadow-soft);
 }
+/* Folded paper chit — subtle grain, fold creases and a warm paper tint. */
+@utility chit-paper {
+  background-image:
+    repeating-linear-gradient(
+      115deg,
+      color-mix(in oklab, white 6%, transparent) 0px,
+      color-mix(in oklab, white 6%, transparent) 1px,
+      transparent 1px,
+      transparent 4px
+    ),
+    radial-gradient(120% 80% at 20% 10%, color-mix(in oklab, white 14%, transparent), transparent 60%),
+    var(--gradient-primary);
+}
+
+@utility chit-paper-face {
+  background-image:
+    repeating-linear-gradient(
+      100deg,
+      color-mix(in oklab, var(--foreground) 3%, transparent) 0px,
+      color-mix(in oklab, var(--foreground) 3%, transparent) 1px,
+      transparent 1px,
+      transparent 5px
+    ),
+    radial-gradient(120% 90% at 80% 0%, color-mix(in oklab, var(--primary) 8%, transparent), transparent 65%);
+}
+
 @utility text-gradient {
   background-image: var(--gradient-primary);
   background-clip: text;
