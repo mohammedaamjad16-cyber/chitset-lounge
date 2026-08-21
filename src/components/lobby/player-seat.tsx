@@ -79,6 +79,23 @@ export const PlayerSeat = memo(function PlayerSeat({
               <Crown className="h-3 w-3" /> Host
             </Badge>
           )}
+          {player.isBot && (
+            <Badge variant="outline" className="gap-1 border-primary/50 text-[10px] text-primary">
+              <Bot className="h-3 w-3" /> BOT
+            </Badge>
+          )}
+          {player.team && (
+            <Badge
+              className={cn(
+                "text-[10px]",
+                player.team === "A"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-success text-success-foreground",
+              )}
+            >
+              Team {player.team}
+            </Badge>
+          )}
           <Badge
             className={cn(
               "gap-1 text-[10px]",
