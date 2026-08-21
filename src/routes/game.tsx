@@ -60,6 +60,9 @@ function GameRoute() {
   const [leaveOpen, setLeaveOpen] = useState(false);
   const savedRef = useRef<string | null>(null);
   const [online, setOnline] = useState(false);
+  const [shakeKey, setShakeKey] = useState(0);
+  const prevTurnId = useRef<string | null>(null);
+  const prevPassAt = useRef<number>(0);
   const isHost = !!room && !!meId && room.hostId === meId;
   useMatchSync(room?.code ?? null, isHost, online);
   const { reactions, sendReaction } = useReactions(online ? (room?.code ?? "") : "", meId ?? "");
