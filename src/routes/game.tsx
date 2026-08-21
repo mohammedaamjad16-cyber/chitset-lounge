@@ -81,11 +81,31 @@ function GameRoute() {
     startMatch(room, getMeId());
   }, [hydrating, match, room]);
 
-  // Invalid SHOW feedback.
+  // Invalid SHOW feedback — shake the hand and buzz once.
   useEffect(() => {
     if (!match?.invalidShowAt) return;
+    play("invalidShow");
+    setShakeKey((k) => k + 1);
     clearInvalidShow();
-  }, [match?.invalidShowAt]);
+  }, [match?.invalidShowAt, play]);
+
+  // Ambient cues for pass + turn changes (works for bots and remote players too).
+  useEffect(() => {
+    const at = match?.pass?.at ?? 0;
+    if (at && at !== prevPassAt.current) {
+      prevPassAt.current = at;
+      play(match?.pass?.toId === meId ? "receive" : "pass");
+    }
+  }, [match?.pass?.at, match?.pass?.toId, meId, play]);
+
+  useEffect(() => {
+    if (!match || match.phase !== "playing") return;
+    const activeId = match.players[match.turnIndex]?.id ?? null;
+    if (activeId && activeId !== prevTurnId.current) {
+      prevTurnId.current = activeId;
+      if (activeId === meId) play("turnStart");
+    }
+  }, [match, meId, play]);
 
   // Persist the finished match once.
   useEffect(() => {
