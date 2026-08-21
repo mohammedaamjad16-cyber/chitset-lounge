@@ -180,7 +180,11 @@ function CreateRoom() {
             </Field>
 
             <Field label="Category" error={errors.categoryId}>
-              <CategoryGrid value={form.categoryId} onChange={(id) => set("categoryId", id as FormState["categoryId"])} />
+              <CategoryGrid
+                value={form.categoryId}
+                onChange={(id) => set("categoryId", id as FormState["categoryId"])}
+                playerCount={Number(form.maxPlayers)}
+              />
             </Field>
 
             <Field label="Visibility">

@@ -84,7 +84,7 @@ export function RoomSettingsDialog({
 
           <div className="space-y-2">
             <Label>Category</Label>
-            <CategoryGrid value={categoryId} onChange={setCategoryId} />
+            <CategoryGrid value={categoryId} onChange={setCategoryId} playerCount={Number(maxPlayers)} />
           </div>
 
           <div className="space-y-2">

@@ -60,6 +60,9 @@ function GameRoute() {
   const [leaveOpen, setLeaveOpen] = useState(false);
   const savedRef = useRef<string | null>(null);
   const [online, setOnline] = useState(false);
+  const [shakeKey, setShakeKey] = useState(0);
+  const prevTurnId = useRef<string | null>(null);
+  const prevPassAt = useRef<number>(0);
   const isHost = !!room && !!meId && room.hostId === meId;
   useMatchSync(room?.code ?? null, isHost, online);
   const { reactions, sendReaction } = useReactions(online ? (room?.code ?? "") : "", meId ?? "");
@@ -78,11 +81,31 @@ function GameRoute() {
     startMatch(room, getMeId());
   }, [hydrating, match, room]);
 
-  // Invalid SHOW feedback.
+  // Invalid SHOW feedback — shake the hand and buzz once.
   useEffect(() => {
     if (!match?.invalidShowAt) return;
+    play("invalidShow");
+    setShakeKey((k) => k + 1);
     clearInvalidShow();
-  }, [match?.invalidShowAt]);
+  }, [match?.invalidShowAt, play]);
+
+  // Ambient cues for pass + turn changes (works for bots and remote players too).
+  useEffect(() => {
+    const at = match?.pass?.at ?? 0;
+    if (at && at !== prevPassAt.current) {
+      prevPassAt.current = at;
+      play(match?.pass?.toId === meId ? "receive" : "pass");
+    }
+  }, [match?.pass?.at, match?.pass?.toId, meId, play]);
+
+  useEffect(() => {
+    if (!match || match.phase !== "playing") return;
+    const activeId = match.players[match.turnIndex]?.id ?? null;
+    if (activeId && activeId !== prevTurnId.current) {
+      prevTurnId.current = activeId;
+      if (activeId === meId) play("turnStart");
+    }
+  }, [match, meId, play]);
 
   // Persist the finished match once.
   useEffect(() => {
@@ -228,6 +251,7 @@ function GameRoute() {
               match={match}
               meId={me?.id ?? null}
               categoryName={categoryName}
+              categoryEmoji={category?.emoji}
               reactions={online ? reactions : undefined}
             />
             {online && <ReactionBar onSend={sendReaction} className="mt-4" />}
@@ -272,6 +296,7 @@ function GameRoute() {
             selectedId={selected}
             isMyTurn={isMyTurn}
             canAct={canAct}
+            shakeKey={shakeKey}
             onSelect={(id) => {
               play("click");
               setSelected((prev) => (prev === id ? null : id));

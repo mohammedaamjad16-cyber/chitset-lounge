@@ -173,12 +173,13 @@ function CategoryTile({
         disabled={cat.comingSoon}
         onClick={onSelect}
         className={cn(
-          "group relative flex min-h-[92px] w-full flex-col rounded-2xl border p-3 text-left transition-all duration-200",
+          "group relative flex min-h-[92px] w-full flex-col rounded-2xl border p-3 pb-3 text-left transition-all duration-200",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
           selected
             ? "border-primary bg-primary/5 shadow-glow"
             : "border-border hover:-translate-y-0.5 hover:border-primary/40 hover:bg-muted/50",
           cat.comingSoon && "cursor-not-allowed opacity-60 hover:translate-y-0",
+          actions && "pb-11",
         )}
       >
         <div className="flex items-center gap-2">
@@ -209,8 +210,9 @@ function CategoryTile({
             Coming Soon
           </Badge>
         )}
-        {actions}
       </button>
+      {actions && <div className="absolute bottom-1.5 right-1.5">{actions}</div>}
+
     </motion.div>
   );
 }

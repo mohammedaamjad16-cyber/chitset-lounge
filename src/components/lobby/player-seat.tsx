@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { motion } from "framer-motion";
-import { Crown, Wifi, WifiOff, Check, UserPlus } from "lucide-react";
+import { Bot, Crown, Wifi, WifiOff, Check, UserPlus } from "lucide-react";
 import type { Player } from "@/lib/game/types";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -77,6 +77,23 @@ export const PlayerSeat = memo(function PlayerSeat({
           {player.isHost && (
             <Badge variant="secondary" className="gap-1 text-[10px]">
               <Crown className="h-3 w-3" /> Host
+            </Badge>
+          )}
+          {player.isBot && (
+            <Badge variant="outline" className="gap-1 border-primary/50 text-[10px] text-primary">
+              <Bot className="h-3 w-3" /> BOT
+            </Badge>
+          )}
+          {player.team && (
+            <Badge
+              className={cn(
+                "text-[10px]",
+                player.team === "A"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-success text-success-foreground",
+              )}
+            >
+              Team {player.team}
             </Badge>
           )}
           <Badge
