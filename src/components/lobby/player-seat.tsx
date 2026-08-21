@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { motion } from "framer-motion";
-import { Crown, Wifi, WifiOff, Check, UserPlus } from "lucide-react";
+import { Bot, Crown, Wifi, WifiOff, Check, UserPlus } from "lucide-react";
 import type { Player } from "@/lib/game/types";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
