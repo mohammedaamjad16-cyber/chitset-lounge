@@ -251,6 +251,7 @@ function GameRoute() {
               match={match}
               meId={me?.id ?? null}
               categoryName={categoryName}
+              categoryEmoji={category?.emoji}
               reactions={online ? reactions : undefined}
             />
             {online && <ReactionBar onSend={sendReaction} className="mt-4" />}
@@ -295,6 +296,7 @@ function GameRoute() {
             selectedId={selected}
             isMyTurn={isMyTurn}
             canAct={canAct}
+            shakeKey={shakeKey}
             onSelect={(id) => {
               play("click");
               setSelected((prev) => (prev === id ? null : id));
