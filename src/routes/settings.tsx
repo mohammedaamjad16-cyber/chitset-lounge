@@ -48,18 +48,24 @@ function SettingsPage() {
             <Label className="mb-2 block text-sm text-muted-foreground">Theme</Label>
             <div className="mb-6 grid grid-cols-3 gap-2">
               {THEME_OPTIONS.map((opt) => (
-                <button
+                <motion.button
                   key={opt.id}
                   type="button"
-                  onClick={() => setTheme(opt.id)}
+                  onClick={() => {
+                    playCue("select");
+                    setTheme(opt.id);
+                  }}
+                  whileTap={{ scale: 0.96 }}
+                  animate={{ scale: theme === opt.id ? 1.03 : 1 }}
+                  transition={{ type: "spring", stiffness: 420, damping: 18 }}
                   className={cn(
-                    "flex flex-col items-center gap-2 rounded-xl border px-3 py-3 text-sm transition",
+                    "flex flex-col items-center gap-2 rounded-xl border px-3 py-3 text-sm transition-colors",
                     theme === opt.id ? "border-primary bg-primary/10 shadow-glow" : "border-border bg-muted/40 hover:bg-muted",
                   )}
                 >
                   <opt.icon className="h-5 w-5" />
                   {opt.label}
-                </button>
+                </motion.button>
               ))}
             </div>
 
