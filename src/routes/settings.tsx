@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useSettings, updateSettings, PALETTES } from "@/lib/settings/settings-store";
 import { useTheme } from "@/contexts/theme-context";
-import { playCue } from "@/lib/audio/audio-manager";
+import { playCue, syncMusic, unlockAudio } from "@/lib/audio/audio-manager";
 import { useAuth } from "@/lib/auth/auth-context";
 import { cn } from "@/lib/utils";
 
@@ -180,6 +180,12 @@ function SettingsPage() {
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.1 }}>
           <GlassCard className="flex flex-col gap-4 p-6">
             <h3 className="text-lg font-semibold">Gameplay</h3>
+            <SettingRow label="Animations" description="Enable motion and transitions across the app.">
+              <Switch
+                checked={settings.animationsEnabled}
+                onCheckedChange={(v) => updateSettings({ animationsEnabled: v })}
+              />
+            </SettingRow>
             <SettingRow label="Reduced motion" description="Minimize animations across the app.">
               <Switch checked={settings.reducedMotion} onCheckedChange={(v) => updateSettings({ reducedMotion: v })} />
             </SettingRow>
@@ -224,6 +230,38 @@ function SettingRow({ label, description, children }: { label: string; descripti
         {description && <p className="text-xs text-muted-foreground">{description}</p>}
       </div>
       {children}
+    </div>
+  );
+}
+
+function VolumeRow({
+  label,
+  value,
+  disabled,
+  onChange,
+  onCommit,
+}: {
+  label: string;
+  value: number;
+  disabled?: boolean;
+  onChange: (v: number) => void;
+  onCommit?: () => void;
+}) {
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <Label className="text-sm">{label}</Label>
+        <span className="text-xs tabular-nums text-muted-foreground">{Math.round(value * 100)}%</span>
+      </div>
+      <Slider
+        value={[Math.round(value * 100)]}
+        max={100}
+        step={5}
+        disabled={disabled}
+        aria-label={label}
+        onValueChange={([v]) => onChange(v / 100)}
+        onValueCommit={onCommit}
+      />
     </div>
   );
 }
