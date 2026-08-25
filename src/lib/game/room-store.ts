@@ -77,7 +77,14 @@ export function createRoom(input: CreateRoomInput): RoomState {
     allowBots: input.allowBots ?? true,
     botDifficulty: input.botDifficulty ?? "normal",
     players: [
-      { id: hostId, name: input.hostName, isHost: true, isReady: false, connection: "connected" },
+      {
+        id: hostId,
+        name: input.hostName,
+        isHost: true,
+        isReady: false,
+        connection: "connected",
+        ...(input.gameMode === "team" ? { team: "A" as TeamId } : {}),
+      },
     ],
     createdAt: Date.now(),
   };
