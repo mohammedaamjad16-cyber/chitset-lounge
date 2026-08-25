@@ -14,9 +14,23 @@ import { HostControls } from "@/components/lobby/host-controls";
 import { InvitePanel } from "@/components/lobby/invite-panel";
 import { RoomSettingsDialog } from "@/components/lobby/room-settings-dialog";
 import { getCategory } from "@/lib/game/categories";
-import { useRoom, toggleReady, leaveRoom, getMeId, setRoomStatus, fillWithSimulatedPlayers, getRoomSnapshot, isOnlineMode } from "@/lib/game/room-store";
+import {
+  useRoom,
+  toggleReady,
+  leaveRoom,
+  getMeId,
+  setRoomStatus,
+  getRoomSnapshot,
+  isOnlineMode,
+  addBots,
+  removeBots,
+  updateRoomSettings,
+  autoBalanceTeams,
+} from "@/lib/game/room-store";
 import { endMatch, startMatch } from "@/lib/game/match-store";
 import { notify } from "@/lib/notify";
+import { BotsPanel } from "@/components/lobby/bots-panel";
+import { playCue } from "@/lib/audio/audio-manager";
 import { ChatPanel } from "@/components/chat/chat-panel";
 import { Wifi, WifiOff, Loader2 } from "lucide-react";
 import {
@@ -108,12 +122,35 @@ function Lobby() {
     }
   };
 
+  const allowBots = room.allowBots ?? true;
+  const seatsOpen = Math.max(0, room.maxPlayers - room.players.length);
+  const notEnoughPlayers = room.players.length < 2;
+
+  const addBotSeats = () => {
+    const added = addBots(room.maxPlayers);
+    playCue(added > 0 ? "join" : "error");
+    if (added > 0) {
+      if (room.gameMode === "team") autoBalanceTeams();
+      notify.success(
+        added === 1 ? "1 bot seated" : `${added} bots seated`,
+        "Bots play with the same rules and only see their own chits.",
+      );
+    } else {
+      notify.info("No open seats", "Raise the player limit to add more bots.");
+    }
+  };
+
   const start = () => {
+    if (notEnoughPlayers && !allowBots) {
+      notify.error("Not enough players", "Turn on Allow Bots or wait for another player to join.");
+      return;
+    }
     setStarting(true);
     if (online) {
       void setOnlineRoomStatus(room.code, "in-game");
-    } else if (room.players.length < 2) {
-      fillWithSimulatedPlayers(Math.max(2, room.maxPlayers));
+    } else if (notEnoughPlayers && allowBots) {
+      addBots(Math.max(2, room.maxPlayers));
+      if (room.gameMode === "team") autoBalanceTeams();
     }
     setRoomStatus("in-game");
     setTimeout(() => {
@@ -172,6 +209,32 @@ function Lobby() {
                   Player
                 </Badge>
               </GlassCard>
+            )}
+
+            {isHost && (
+              <BotsPanel
+                allowBots={allowBots}
+                botDifficulty={room.botDifficulty ?? "normal"}
+                teamMode={room.gameMode === "team"}
+                playerCount={room.players.length}
+                botCount={room.players.filter((p) => p.isBot).length}
+                seatsOpen={seatsOpen}
+                notEnoughPlayers={notEnoughPlayers}
+                onToggleAllowBots={(v) => {
+                  updateRoomSettings({ allowBots: v });
+                  if (!v) removeBots();
+                }}
+                onDifficultyChange={(v) => updateRoomSettings({ botDifficulty: v })}
+                onAddBots={addBotSeats}
+                onRemoveBots={() => {
+                  removeBots();
+                  notify.info("Bots removed", "The table is waiting for human players.");
+                }}
+                onBalanceTeams={() => {
+                  autoBalanceTeams();
+                  notify.success("Teams balanced", "Players were split evenly between Team A and Team B.");
+                }}
+              />
             )}
 
             <InvitePanel code={room.code} onCopyCode={copyCode} />
