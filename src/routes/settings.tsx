@@ -72,17 +72,30 @@ function SettingsPage() {
             <Label className="mb-2 block text-sm text-muted-foreground">Colour palette</Label>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
               {PALETTES.map((p) => (
-                <button
+                <motion.button
                   key={p.id}
                   type="button"
-                  onClick={() => updateSettings({ palette: p.id })}
+                  onClick={() => {
+                    playCue("select");
+                    updateSettings({ palette: p.id });
+                  }}
+                  whileTap={{ scale: 0.96 }}
+                  animate={{ scale: settings.palette === p.id ? 1.04 : 1 }}
+                  transition={{ type: "spring", stiffness: 420, damping: 18 }}
                   className={cn(
-                    "relative flex flex-col items-center gap-2 rounded-xl border p-3 transition",
+                    "relative flex flex-col items-center gap-2 rounded-xl border p-3 transition-colors",
                     settings.palette === p.id ? "border-primary shadow-glow" : "border-border hover:bg-muted/40",
                   )}
                 >
                   {settings.palette === p.id && (
-                    <Check className="absolute right-1.5 top-1.5 h-3.5 w-3.5 text-primary" />
+                    <motion.span
+                      initial={{ scale: 0, rotate: -30 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 16 }}
+                      className="absolute right-1.5 top-1.5"
+                    >
+                      <Check className="h-3.5 w-3.5 text-primary" />
+                    </motion.span>
                   )}
                   <div className="flex gap-1">
                     {p.swatch.map((c) => (
@@ -90,7 +103,7 @@ function SettingsPage() {
                     ))}
                   </div>
                   <span className="text-xs font-medium">{p.name}</span>
-                </button>
+                </motion.button>
               ))}
             </div>
           </GlassCard>
@@ -99,26 +112,68 @@ function SettingsPage() {
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.05 }}>
           <GlassCard className="flex flex-col gap-4 p-6">
             <h3 className="text-lg font-semibold">Audio</h3>
-            <SettingRow label="Sound effects" description="Play sound cues for game actions.">
-              <Switch checked={settings.soundEnabled} onCheckedChange={(v) => updateSettings({ soundEnabled: v })} />
-            </SettingRow>
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <Label className="text-sm">Volume</Label>
-                <span className="text-xs text-muted-foreground">{Math.round(settings.soundVolume * 100)}%</span>
-              </div>
-              <Slider
-                value={[settings.soundVolume * 100]}
-                max={100}
-                step={5}
-                disabled={!settings.soundEnabled}
-                onValueChange={([v]) => updateSettings({ soundVolume: v / 100 })}
-                onValueCommit={() => playCue("click")}
+            <SettingRow label="Mute everything" description="Silences all sound effects and music instantly.">
+              <Switch
+                checked={settings.muteAll}
+                onCheckedChange={(v) => {
+                  updateSettings({ muteAll: v });
+                  syncMusic();
+                  if (!v) playCue("click");
+                }}
               />
-            </div>
-            <SettingRow label="Music" description="Background music (coming soon).">
-              <Switch checked={settings.musicEnabled} onCheckedChange={(v) => updateSettings({ musicEnabled: v })} />
             </SettingRow>
+
+            <VolumeRow
+              label="Master volume"
+              value={settings.masterVolume}
+              disabled={settings.muteAll}
+              onChange={(v) => {
+                updateSettings({ masterVolume: v });
+                syncMusic();
+              }}
+            />
+
+            <SettingRow label="Sound effects" description="Play sound cues for game actions.">
+              <Switch
+                checked={settings.soundEnabled}
+                disabled={settings.muteAll}
+                onCheckedChange={(v) => {
+                  updateSettings({ soundEnabled: v });
+                  if (v) playCue("select");
+                }}
+              />
+            </SettingRow>
+            <VolumeRow
+              label="SFX volume"
+              value={settings.soundVolume}
+              disabled={settings.muteAll || !settings.soundEnabled}
+              onChange={(v) => updateSettings({ soundVolume: v })}
+              onCommit={() => playCue("click")}
+            />
+
+            <SettingRow label="Music" description="Gentle looping background music.">
+              <Switch
+                checked={settings.musicEnabled}
+                disabled={settings.muteAll}
+                onCheckedChange={(v) => {
+                  updateSettings({ musicEnabled: v });
+                  unlockAudio();
+                  syncMusic();
+                }}
+              />
+            </SettingRow>
+            <VolumeRow
+              label="Music volume"
+              value={settings.musicVolume}
+              disabled={settings.muteAll || !settings.musicEnabled}
+              onChange={(v) => {
+                updateSettings({ musicVolume: v });
+                syncMusic();
+              }}
+            />
+            <p className="text-xs text-muted-foreground">
+              Audio starts after your first tap or click — browsers require an interaction before playing sound.
+            </p>
           </GlassCard>
         </motion.div>
 
