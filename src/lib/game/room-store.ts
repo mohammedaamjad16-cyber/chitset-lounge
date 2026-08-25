@@ -77,7 +77,14 @@ export function createRoom(input: CreateRoomInput): RoomState {
     allowBots: input.allowBots ?? true,
     botDifficulty: input.botDifficulty ?? "normal",
     players: [
-      { id: hostId, name: input.hostName, isHost: true, isReady: false, connection: "connected" },
+      {
+        id: hostId,
+        name: input.hostName,
+        isHost: true,
+        isReady: false,
+        connection: "connected",
+        ...(input.gameMode === "team" ? { team: "A" as TeamId } : {}),
+      },
     ],
     createdAt: Date.now(),
   };
@@ -164,6 +171,9 @@ export function addBots(target?: number): number {
       isReady: true,
       connection: "connected",
       isBot: true,
+      ...(state.gameMode === "team"
+        ? { team: ((state.players.length + extras.length) % 2 === 0 ? "A" : "B") as TeamId }
+        : {}),
     });
   }
   state = { ...state, players: [...state.players, ...extras] };
@@ -225,6 +235,7 @@ export function fillWithSimulatedPlayers(target?: number) {
       isReady: true,
       connection: "connected",
       isBot: true,
+      ...(state.gameMode === "team" ? { team: (i % 2 === 0 ? "A" : "B") as TeamId } : {}),
     });
   }
   state = { ...state, players: [...state.players, ...extras] };

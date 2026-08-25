@@ -18,6 +18,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { AuthProvider } from "@/lib/auth/auth-context";
 import { hydrateSettings } from "@/lib/settings/settings-store";
+import { disposeAudio, unlockAudio } from "@/lib/audio/audio-manager";
 
 function NotFoundComponent() {
   return (
@@ -129,6 +130,18 @@ function RootComponent() {
 
   useEffect(() => {
     hydrateSettings();
+    // Browsers block audio until the first gesture — unlock once, then release.
+    const unlock = () => unlockAudio();
+    const opts = { once: true, passive: true } as const;
+    window.addEventListener("pointerdown", unlock, opts);
+    window.addEventListener("keydown", unlock, opts);
+    window.addEventListener("touchstart", unlock, opts);
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+      window.removeEventListener("touchstart", unlock);
+      disposeAudio();
+    };
   }, []);
 
   return (

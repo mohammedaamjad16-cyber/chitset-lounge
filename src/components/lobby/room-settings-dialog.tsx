@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -20,8 +19,9 @@ import {
 } from "@/components/ui/select";
 import { CategoryGrid } from "@/components/room/category-grid";
 import { notify } from "@/lib/notify";
-import { updateRoomSettings } from "@/lib/game/room-store";
-import type { RoomState, RoomVisibility } from "@/lib/game/types";
+import { autoBalanceTeams, clearTeams, updateRoomSettings } from "@/lib/game/room-store";
+import type { GameMode, RoomState, RoomVisibility } from "@/lib/game/types";
+import type { BotDifficulty } from "@/lib/game/bots";
 
 export function RoomSettingsDialog({
   open,
@@ -35,9 +35,21 @@ export function RoomSettingsDialog({
   const [maxPlayers, setMaxPlayers] = useState(String(room.maxPlayers));
   const [categoryId, setCategoryId] = useState(room.categoryId);
   const [visibility, setVisibility] = useState<RoomVisibility>(room.visibility);
+  const [gameMode, setGameMode] = useState<GameMode>(room.gameMode ?? "classic");
+  const [allowBots, setAllowBots] = useState(room.allowBots ?? true);
+  const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>(room.botDifficulty ?? "normal");
 
   const save = () => {
-    updateRoomSettings({ maxPlayers: Number(maxPlayers), categoryId, visibility });
+    updateRoomSettings({
+      maxPlayers: Number(maxPlayers),
+      categoryId,
+      visibility,
+      gameMode,
+      allowBots,
+      botDifficulty,
+    });
+    if (gameMode === "team") autoBalanceTeams();
+    else clearTeams();
     notify.success("Settings updated", "Your room configuration has been saved.");
     onOpenChange(false);
   };
@@ -87,20 +99,40 @@ export function RoomSettingsDialog({
             <CategoryGrid value={categoryId} onChange={setCategoryId} playerCount={Number(maxPlayers)} />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label>Advanced</Label>
-            <div className="grid gap-2 sm:grid-cols-3">
-              {["Team Mode", "Ranked Mode", "Spectator Mode"].map((label) => (
-                <div
-                  key={label}
-                  className="flex items-center justify-between rounded-xl border border-border/60 p-3 opacity-70"
-                >
-                  <span className="text-sm font-medium">{label}</span>
-                  <Badge variant="secondary" className="text-[10px]">
-                    Coming Soon
-                  </Badge>
-                </div>
-              ))}
+            <div className="flex items-center justify-between rounded-xl border border-border/60 p-3">
+              <div>
+                <p className="text-sm font-medium">Team Mode</p>
+                <p className="text-xs text-muted-foreground">Players are split into Team A and Team B.</p>
+              </div>
+              <Switch
+                checked={gameMode === "team"}
+                onCheckedChange={(c) => setGameMode(c ? "team" : "classic")}
+              />
+            </div>
+            <div className="flex items-center justify-between rounded-xl border border-border/60 p-3">
+              <div>
+                <p className="text-sm font-medium">Allow Bots</p>
+                <p className="text-xs text-muted-foreground">Fill empty seats with AI players.</p>
+              </div>
+              <Switch checked={allowBots} onCheckedChange={setAllowBots} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="settings-bot-difficulty">Bot Difficulty</Label>
+              <Select
+                value={botDifficulty}
+                onValueChange={(v) => setBotDifficulty(v as "easy" | "normal" | "hard")}
+              >
+                <SelectTrigger id="settings-bot-difficulty" className="min-h-11" disabled={!allowBots}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="easy">Easy — plays loosely</SelectItem>
+                  <SelectItem value="normal">Normal — sensible strategy</SelectItem>
+                  <SelectItem value="hard">Hard — strong strategy</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>

@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { z } from "zod";
-import { Plus, Users, Lock, Globe, Sparkles } from "lucide-react";
+import { Plus, Users, Lock, Globe, Sparkles, Check } from "lucide-react";
 import { GlassCard } from "@/components/shared/glass-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { playCue } from "@/lib/audio/audio-manager";
 import { CategoryGrid } from "@/components/room/category-grid";
 import { ButtonLoader } from "@/components/shared/loaders";
 import { notify } from "@/lib/notify";
@@ -50,7 +52,9 @@ const schema = z.object({
   maxPlayers: z.enum(["2", "3", "4", "5", "6", "7", "8"]),
   categoryId: z.enum(selectableCategories),
   visibility: z.enum(["public", "private"]),
-  gameMode: z.enum(["classic"]),
+  gameMode: z.enum(["classic", "team"]),
+  allowBots: z.boolean(),
+  botDifficulty: z.enum(["easy", "normal", "hard"]),
 });
 
 type FormState = z.infer<typeof schema>;
@@ -63,6 +67,8 @@ const initial: FormState = {
   categoryId: "fruits",
   visibility: "private",
   gameMode: "classic",
+  allowBots: true,
+  botDifficulty: "normal",
 };
 
 function CreateRoom() {
@@ -100,7 +106,9 @@ function CreateRoom() {
       maxPlayers: Number(form.maxPlayers),
       categoryId: form.categoryId,
       visibility: form.visibility,
-      gameMode: "classic" as const,
+      gameMode: form.gameMode,
+      allowBots: form.allowBots,
+      botDifficulty: form.botDifficulty,
     };
 
     void (async () => {
@@ -200,10 +208,52 @@ function CreateRoom() {
 
             <Field label="Game Mode">
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                <ModeOption title="Classic" desc="The original 4 Chit rules." active onClick={() => set("gameMode", "classic")} />
-                <ModeOption title="Team Mode" desc="Play in paired squads." disabled />
+                <ModeOption
+                  title="Classic"
+                  desc="The original 4 Chit rules."
+                  active={form.gameMode === "classic"}
+                  onClick={() => set("gameMode", "classic")}
+                />
+                <ModeOption
+                  title="Team Mode"
+                  desc="Paired squads — Team A vs Team B."
+                  active={form.gameMode === "team"}
+                  onClick={() => set("gameMode", "team")}
+                />
                 <ModeOption title="Tournament" desc="Bracket-style multi-round." disabled />
                 <ModeOption title="Ranked" desc="Climb the global ladder." disabled />
+              </div>
+            </Field>
+
+            <Field label="Bots">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-border p-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold">Allow Bots</p>
+                    <p className="text-xs text-muted-foreground">Fill empty seats with AI players.</p>
+                  </div>
+                  <Switch
+                    checked={form.allowBots}
+                    onCheckedChange={(v) => {
+                      playCue("select");
+                      set("allowBots", v);
+                    }}
+                    aria-label="Allow bots"
+                  />
+                </div>
+                <Select
+                  value={form.botDifficulty}
+                  onValueChange={(v) => set("botDifficulty", v as FormState["botDifficulty"])}
+                >
+                  <SelectTrigger className="min-h-11" disabled={!form.allowBots} aria-label="Bot difficulty">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="easy">Easy — plays loosely</SelectItem>
+                    <SelectItem value="normal">Normal — sensible strategy</SelectItem>
+                    <SelectItem value="hard">Hard — strong strategy</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </Field>
 
@@ -284,22 +334,39 @@ function ModeOption({
   title, desc, active, disabled, onClick,
 }: { title: string; desc: string; active?: boolean; disabled?: boolean; onClick?: () => void }) {
   return (
-    <button
+    <motion.button
       type="button"
-      onClick={onClick}
+      onClick={() => {
+        if (disabled) return;
+        playCue("select");
+        onClick?.();
+      }}
       disabled={disabled}
+      whileTap={disabled ? undefined : { scale: 0.96 }}
+      animate={{ scale: active ? 1.03 : 1 }}
+      transition={{ type: "spring", stiffness: 420, damping: 18 }}
       className={cn(
-        "relative rounded-xl border p-3 text-left transition-all",
-        active && "border-primary bg-primary/5 shadow-soft",
+        "relative rounded-xl border p-3 text-left transition-colors",
+        active && "border-primary bg-primary/5 shadow-glow",
         !active && !disabled && "border-border hover:bg-muted/50",
         disabled && "cursor-not-allowed border-border/60 opacity-70",
       )}
     >
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-semibold">{title}</span>
+        {active && (
+          <motion.span
+            initial={{ scale: 0, rotate: -25 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: "spring", stiffness: 520, damping: 16 }}
+            className="grid h-4 w-4 place-items-center rounded-full bg-primary text-primary-foreground"
+          >
+            <Check className="h-2.5 w-2.5" />
+          </motion.span>
+        )}
         {disabled && <Badge variant="secondary" className="text-[10px]">Coming Soon</Badge>}
       </div>
       <p className="mt-1 text-xs text-muted-foreground">{desc}</p>
-    </button>
+    </motion.button>
   );
 }
