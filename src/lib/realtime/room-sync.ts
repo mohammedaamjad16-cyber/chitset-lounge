@@ -2,7 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { CreateRoomInput, Player, RoomState } from "@/lib/game/types";
-import { generateRoomCode, setMeId, setOnlineMode, setRoom } from "@/lib/game/room-store";
+import {
+  generateRoomCode,
+  getRoomSnapshot,
+  setMeId,
+  setOnlineMode,
+  setRoom,
+} from "@/lib/game/room-store";
 
 /**
  * Realtime room synchronisation.
@@ -241,7 +247,17 @@ export function useRoomSync(code: string | null, enabled: boolean) {
       try {
         const next = await fetchRoom(code);
         if (!active) return;
-        if (next) setRoom(next);
+        if (next) {
+          // Bots are seated locally and never exist server-side — without this
+          // merge every snapshot refetch would silently remove them.
+          const localBots = getRoomSnapshot()?.players.filter((p) => p.isBot) ?? [];
+          if (localBots.length > 0) {
+            const serverIds = new Set(next.players.map((p) => p.id));
+            const missing = localBots.filter((b) => !serverIds.has(b.id));
+            if (missing.length > 0) next.players = [...next.players, ...missing];
+          }
+          setRoom(next);
+        }
       } catch {
         /* transient — realtime will retry */
       }
