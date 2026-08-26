@@ -47,7 +47,7 @@ export function PlayerHand({
   const best = Math.max(0, ...Object.values(counts));
   const bestItem = Object.keys(counts).find((k) => counts[k] === best);
   const nearWin = best === CHITS_PER_PLAYER - 1;
-  const canWin = best === CHITS_PER_PLAYER;
+  const canWin = best >= CHITS_PER_PLAYER;
 
   return (
     <div className="space-y-4">

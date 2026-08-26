@@ -4,6 +4,7 @@ import { botChoosePass, botDelayMs, type BotDifficulty } from "./bots";
 import { playCue } from "@/lib/audio/audio-manager";
 import {
   dealChits,
+  extractWinningChits,
   generateChits,
   isWinningHand,
   nextTurnIndex,
@@ -307,6 +308,11 @@ function completePass() {
   const to = state.players.find((p) => p.id === toId);
   log(`${from?.name ?? "Player"} passed a chit to ${to?.name ?? "Player"}.`);
   emit();
+
+  // If the receiver now has four matching chits, auto-show for bots.
+  if (to && to.isBot && isWinningHand(receiver) && !state.shown[toId]) {
+    callShow(toId);
+  }
 }
 
 /** Points by placement: 1st=100, 2nd=75, 3rd=50, 4th=25, rest=10. */
@@ -317,7 +323,10 @@ function scoreForPlace(place: number): number {
 }
 
 export function callShow(playerId: string): { ok: boolean; reason?: string } {
-  if (!state || state.phase !== "playing") return { ok: false, reason: "The table isn't ready." };
+  if (!state) return { ok: false, reason: "No match in progress." };
+  if (state.phase !== "playing" && state.phase !== "passing") {
+    return { ok: false, reason: "The table isn't ready." };
+  }
   if (state.shown[playerId]) return { ok: false, reason: "You already Showed." };
   const hand = state.hands[playerId] ?? [];
 
@@ -326,16 +335,17 @@ export function callShow(playerId: string): { ok: boolean; reason?: string } {
     const who = state.players.find((p) => p.id === playerId);
     log(`${who?.name ?? "Player"} called SHOW — not four matching chits.`);
     emit();
-    return { ok: false, reason: "Your four chits are not identical." };
+    return { ok: false, reason: "You need four matching chits to SHOW." };
   }
 
+  const winningChits = extractWinningChits(hand);
   const place = state.showOrder.length;
   const points = scoreForPlace(place);
   const showOrder = [...state.showOrder, playerId];
   const scores = { ...state.scores, [playerId]: (state.scores[playerId] ?? 0) + points };
   const shown = { ...state.shown, [playerId]: true };
 
-  // Reveal the winning chits on the table.
+  // Reveal all chits on the table.
   const revealed = { ...state.revealed };
   hand.forEach((c) => { revealed[c.id] = true; });
 
@@ -344,7 +354,7 @@ export function callShow(playerId: string): { ok: boolean; reason?: string } {
   log(`${who?.name ?? "Player"} called SHOW — ${ordinal} place, +${points} points!`);
   playCue("show");
 
-  state = { ...state, showOrder, scores, shown, revealed };
+  state = { ...state, showOrder, scores, shown, revealed, winningChits };
   emit();
 
   // If all players have Showed, the match is over.
@@ -362,6 +372,7 @@ function finish(winnerId: string, hand: Chit[]) {
   hand.forEach((c) => {
     revealed[c.id] = true;
   });
+  const winningChits = extractWinningChits(hand);
   const winner = state.players.find((p) => p.id === winnerId);
   state = {
     ...state,
@@ -369,10 +380,11 @@ function finish(winnerId: string, hand: Chit[]) {
     pass: null,
     revealed,
     winnerId,
-    winningChits: hand,
+    winningChits,
     endedAt: Date.now(),
   };
-  log(`${winner?.name ?? "Player"} wins with four ${hand[0]?.label ?? "chits"}!`);
+  const matchLabel = winningChits[0]?.label ?? "chits";
+  log(`${winner?.name ?? "Player"} wins with four ${matchLabel}!`);
   emit();
   stopTicker();
 }
