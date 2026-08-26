@@ -124,6 +124,7 @@ export function GameTable({ match, meId, categoryName, categoryEmoji, reactions 
                 handCount={match.hands[player.id]?.length ?? 0}
                 isActive={active?.id === player.id && match.phase === "playing"}
                 isMe={player.id === meId}
+                hasShown={Boolean(match.shown?.[player.id])}
                 turnStartedAt={match.turnStartedAt}
                 turnDurationMs={match.turnDurationMs}
                 reactions={reactions}
@@ -162,6 +163,7 @@ export function GameTable({ match, meId, categoryName, categoryEmoji, reactions 
                 handCount={match.hands[player.id]?.length ?? 0}
                 isActive={active?.id === player.id && match.phase === "playing"}
                 isMe={player.id === meId}
+                hasShown={Boolean(match.shown?.[player.id])}
                 turnStartedAt={match.turnStartedAt}
                 turnDurationMs={match.turnDurationMs}
                 reactions={reactions}

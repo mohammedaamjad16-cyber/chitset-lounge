@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { useCallback } from "react";
-import { Bot, Crown, WifiOff, Loader2 } from "lucide-react";
+import { Bot, Crown, WifiOff, Loader2, CheckCircle } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { TurnTimer } from "./turn-timer";
@@ -19,6 +19,7 @@ interface GameSeatProps {
   handCount: number;
   isActive: boolean;
   isMe: boolean;
+  hasShown?: boolean;
   turnStartedAt: number;
   turnDurationMs: number;
   compact?: boolean;
@@ -32,6 +33,7 @@ export function GameSeat({
   handCount,
   isActive,
   isMe,
+  hasShown = false,
   turnStartedAt,
   turnDurationMs,
   compact,
@@ -105,6 +107,11 @@ export function GameSeat({
       </p>
 
       <div className="flex flex-wrap items-center justify-center gap-1">
+        {hasShown && (
+          <Badge variant="default" className="gap-1 bg-success px-1.5 text-[10px] text-success-foreground">
+            <CheckCircle className="h-2.5 w-2.5" /> SHOWED
+          </Badge>
+        )}
         {player.isHost && (
           <Badge variant="secondary" className="gap-1 px-1.5 text-[10px]">
             <Crown className="h-2.5 w-2.5" /> Host

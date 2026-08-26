@@ -1,10 +1,9 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
-import { Clock, RotateCcw, Trophy, Users, Repeat, Home } from "lucide-react";
+import { Clock, RotateCcw, Trophy, Users, Repeat, Home, Medal } from "lucide-react";
 import { GlassCard } from "@/components/shared/glass-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChitCard } from "./chit-card";
 import { formatDuration } from "@/lib/game/engine";
 import type { MatchState } from "@/lib/game/match-store";
 import { readHistory } from "@/lib/game/history";
@@ -17,6 +16,8 @@ interface ResultsScreenProps {
   onPlayAgain: () => void;
   onBackToLobby: () => void;
 }
+
+const MEDAL = ["🥇", "🥈", "🥉", "4th", "5th", "6th", "7th", "8th"];
 
 function Confetti() {
   const reduced = useReducedMotionPref();
@@ -32,7 +33,6 @@ function Confetti() {
     [],
   );
 
-  // Decorative only — drop it entirely under reduced motion.
   if (reduced) return null;
 
   return (
@@ -58,10 +58,26 @@ export function ResultsScreen({
   onPlayAgain,
   onBackToLobby,
 }: ResultsScreenProps) {
-  const winner = match.players.find((p) => p.id === match.winnerId);
   const duration = (match.endedAt ?? Date.now()) - match.startedAt;
   const history = useMemo(() => readHistory().slice(0, 4), []);
   const reduced = useReducedMotionPref();
+
+  // Build the ranked list from showOrder + any players who never Showed.
+  const ranked = useMemo(() => {
+    const shown = match.showOrder.map((id, i) => ({
+      id,
+      name: match.players.find((p) => p.id === id)?.name ?? "Player",
+      place: i,
+      points: match.scores[id] ?? 0,
+      isBot: match.players.find((p) => p.id === id)?.isBot ?? false,
+    }));
+    const neverShowed = match.players
+      .filter((p) => !match.shown[p.id])
+      .map((p) => ({ id: p.id, name: p.name, place: match.showOrder.length, points: 0, isBot: p.isBot }));
+    return [...shown, ...neverShowed];
+  }, [match]);
+
+  const winner = ranked[0];
   const iWon = winner?.id === meId;
 
   return (
@@ -86,27 +102,43 @@ export function ResultsScreen({
           {iWon ? "You win!" : `${winner?.name ?? "Someone"} wins!`}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Four matching {match.winningChits[0]?.label ?? "chits"} in the {categoryName} round.
+          Round over — {categoryName} category.
         </p>
-
-        <div className="mt-6 flex flex-wrap justify-center gap-3">
-          {match.winningChits.map((chit) => (
-            <ChitCard key={chit.id} chit={chit} revealed size="sm" disabled />
-          ))}
-        </div>
 
         <div className="mt-7 grid gap-3 sm:grid-cols-3">
           <Stat icon={Clock} label="Duration" value={formatDuration(duration)} />
-          <Stat icon={Repeat} label="Total turns" value={String(match.turns)} />
+          <Stat icon={Repeat} label="Total passes" value={String(match.turns)} />
           <Stat icon={Users} label="Players" value={String(match.players.length)} />
         </div>
 
-        <div className="mt-5 flex flex-wrap justify-center gap-2">
-          {match.players.map((p) => (
-            <Badge key={p.id} variant={p.id === match.winnerId ? "default" : "secondary"} className="text-[11px]">
-              {p.id === match.winnerId ? "🏆 " : ""}
-              {p.name}
-            </Badge>
+        {/* Leaderboard */}
+        <div className="mt-6 space-y-2">
+          {ranked.map((p) => (
+            <motion.div
+              key={p.id}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: p.place * 0.1 }}
+              className={`flex items-center justify-between rounded-xl border px-4 py-3 ${
+                p.id === meId
+                  ? "border-primary/50 bg-primary/5"
+                  : "border-border bg-card/50"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-lg">{MEDAL[p.place] ?? `${p.place + 1}th`}</span>
+                <div className="text-left">
+                  <p className="text-sm font-semibold">
+                    {p.name}
+                    {p.id === meId && <span className="ml-1 text-xs text-muted-foreground">(you)</span>}
+                  </p>
+                  {p.isBot && <span className="text-[10px] text-muted-foreground">Bot</span>}
+                </div>
+              </div>
+              <Badge variant={p.place === 0 ? "default" : "secondary"} className="font-display text-sm">
+                +{p.points} pts
+              </Badge>
+            </motion.div>
           ))}
         </div>
 

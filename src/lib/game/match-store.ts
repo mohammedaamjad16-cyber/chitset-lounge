@@ -4,7 +4,6 @@ import { botChoosePass, botDelayMs, type BotDifficulty } from "./bots";
 import { playCue } from "@/lib/audio/audio-manager";
 import {
   dealChits,
-  extractWinningChits,
   generateChits,
   isWinningHand,
   nextTurnIndex,
@@ -64,6 +63,12 @@ export interface MatchState {
   gameMode?: RoomState["gameMode"];
   botDifficulty: BotDifficulty;
   log: LogEntry[];
+  /** Player IDs in the order they called Show. */
+  showOrder: string[];
+  /** Points awarded per player. */
+  scores: Record<string, number>;
+  /** Players who have already Showed and are out. */
+  shown: Record<string, boolean>;
 }
 
 export const TURN_DURATION_MS = 8000;
@@ -222,6 +227,9 @@ export function startMatch(
     gameMode: room.gameMode,
     botDifficulty: room.botDifficulty ?? "normal",
     log: [{ id: uid(), text: "Chits shuffled and dealt.", at: Date.now() }],
+    showOrder: [],
+    scores: {},
+    shown: {},
   };
   emit();
   playCue("shuffle");
@@ -259,6 +267,7 @@ export function currentPlayer(): MatchPlayer | undefined {
 
 export function passChit(playerId: string, chitId: string) {
   if (!state || state.phase !== "playing") return;
+  if (state.shown[playerId]) return; // already Showed — can't pass
   const active = state.players[state.turnIndex];
   if (!active || active.id !== playerId) return;
 
@@ -284,23 +293,6 @@ function completePass() {
   const revealed = { ...state.revealed };
   delete revealed[chit.id]; // arrives folded for the receiver
 
-  const from = state.players.find((p) => p.id === fromId);
-  const to = state.players.find((p) => p.id === toId);
-  log(`${from?.name ?? "Player"} passed a chit to ${to?.name ?? "Player"}.`);
-
-  // If the receiver now has four identical chits, they win immediately — no
-  // need to wait for their turn and be forced to pass first.
-  if (isWinningHand(receiver)) {
-    state = {
-      ...state,
-      hands: { ...state.hands, [toId]: receiver },
-      revealed,
-      pass: null,
-    };
-    finish(toId, extractWinningChits(receiver));
-    return;
-  }
-
   state = {
     ...state,
     hands: { ...state.hands, [toId]: receiver },
@@ -308,14 +300,26 @@ function completePass() {
     pass: null,
     phase: "playing",
     turns: state.turns + 1,
-    turnIndex: nextTurnIndex(state.turnIndex, state.players.length),
+    turnIndex: nextActiveTurnIndex(state.turnIndex),
     turnStartedAt: Date.now(),
   };
+
+  const from = state.players.find((p) => p.id === fromId);
+  const to = state.players.find((p) => p.id === toId);
+  log(`${from?.name ?? "Player"} passed a chit to ${to?.name ?? "Player"}.`);
   emit();
+}
+
+/** Points by placement: 1st=100, 2nd=75, 3rd=50, 4th=25, rest=10. */
+const SHOW_POINTS = [100, 75, 50, 25];
+
+function scoreForPlace(place: number): number {
+  return SHOW_POINTS[place] ?? 10;
 }
 
 export function callShow(playerId: string): { ok: boolean; reason?: string } {
   if (!state || state.phase !== "playing") return { ok: false, reason: "The table isn't ready." };
+  if (state.shown[playerId]) return { ok: false, reason: "You already Showed." };
   const hand = state.hands[playerId] ?? [];
 
   if (!isWinningHand(hand)) {
@@ -326,8 +330,30 @@ export function callShow(playerId: string): { ok: boolean; reason?: string } {
     return { ok: false, reason: "Your four chits are not identical." };
   }
 
-  const winningChits = extractWinningChits(hand);
-  finish(playerId, winningChits);
+  const place = state.showOrder.length;
+  const points = scoreForPlace(place);
+  const showOrder = [...state.showOrder, playerId];
+  const scores = { ...state.scores, [playerId]: (state.scores[playerId] ?? 0) + points };
+  const shown = { ...state.shown, [playerId]: true };
+
+  // Reveal the winning chits on the table.
+  const revealed = { ...state.revealed };
+  hand.forEach((c) => { revealed[c.id] = true; });
+
+  const who = state.players.find((p) => p.id === playerId);
+  const ordinal = place === 0 ? "1st" : place === 1 ? "2nd" : place === 2 ? "3rd" : `${place + 1}th`;
+  log(`${who?.name ?? "Player"} called SHOW — ${ordinal} place, +${points} points!`);
+  playCue("show");
+
+  state = { ...state, showOrder, scores, shown, revealed };
+  emit();
+
+  // If all players have Showed, the match is over.
+  const allShown = state.players.every((p) => shown[p.id]);
+  if (allShown) {
+    finishAll(state);
+  }
+
   return { ok: true };
 }
 
@@ -350,6 +376,37 @@ function finish(winnerId: string, hand: Chit[]) {
   log(`${winner?.name ?? "Player"} wins with four ${hand[0]?.label ?? "chits"}!`);
   emit();
   stopTicker();
+}
+
+/** End the match after all players have Showed. */
+function finishAll(s: MatchState) {
+  // Winner is whoever Showed first.
+  const winnerId = s.showOrder[0] ?? null;
+  const winner = s.players.find((p) => p.id === winnerId);
+  state = {
+    ...s,
+    phase: "finished",
+    pass: null,
+    endedAt: Date.now(),
+    winnerId,
+    winningChits: [],
+  };
+  if (winner) {
+    log(`${winner.name} wins the round — all players Showed!`);
+  }
+  emit();
+  stopTicker();
+}
+
+/** Find the next player who hasn't Showed yet. */
+function nextActiveTurnIndex(current: number): number {
+  if (!state) return 0;
+  const len = state.players.length;
+  for (let i = 1; i <= len; i++) {
+    const idx = (current + i) % len;
+    if (!state.shown[state.players[idx].id]) return idx;
+  }
+  return current; // fallback — shouldn't happen if game ends properly
 }
 
 export function clearInvalidShow() {
@@ -405,11 +462,20 @@ function tick() {
 
   const active = state.players[state.turnIndex];
   if (!active) return;
+
+  // Skip players who already Showed — advance to the next active player.
+  if (state.shown[active.id]) {
+    state = { ...state, turnIndex: nextActiveTurnIndex(state.turnIndex), turnStartedAt: Date.now() };
+    emit();
+    return;
+  }
+
   const elapsed = now - state.turnStartedAt;
 
   // A simulated opponent may claim a valid show.
   if (active.isBot && isWinningHand(state.hands[active.id] ?? []) && elapsed > 900) {
-    finish(active.id, extractWinningChits(state.hands[active.id] ?? []));
+    const hand = state.hands[active.id] ?? [];
+    callShow(active.id);
     return;
   }
 
