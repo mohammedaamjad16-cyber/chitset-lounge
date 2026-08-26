@@ -60,12 +60,19 @@ export function countByItem(hand: Chit[]): Record<string, number> {
   }, {});
 }
 
-/** A winning hand is exactly four chits, all identical. */
+/** A winning hand has at least four chits with the same itemId. */
 export function isWinningHand(hand: Chit[]): boolean {
-  return (
-    hand.length === CHITS_PER_PLAYER &&
-    hand.every((c) => c.itemId === hand[0].itemId)
-  );
+  if (hand.length < CHITS_PER_PLAYER) return false;
+  const counts = countByItem(hand);
+  return Object.values(counts).some((n) => n >= CHITS_PER_PLAYER);
+}
+
+/** Extract exactly four matching chits from a winning hand. */
+export function extractWinningChits(hand: Chit[]): Chit[] {
+  const counts = countByItem(hand);
+  const winner = Object.entries(counts).find(([, n]) => n >= CHITS_PER_PLAYER)?.[0];
+  if (!winner) return [];
+  return hand.filter((c) => c.itemId === winner).slice(0, CHITS_PER_PLAYER);
 }
 
 /** Which chit a bot (or the auto-timer) should give away: the rarest one. */

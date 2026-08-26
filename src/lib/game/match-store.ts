@@ -4,6 +4,7 @@ import { botChoosePass, botDelayMs, type BotDifficulty } from "./bots";
 import { playCue } from "@/lib/audio/audio-manager";
 import {
   dealChits,
+  extractWinningChits,
   generateChits,
   isWinningHand,
   nextTurnIndex,
@@ -283,6 +284,23 @@ function completePass() {
   const revealed = { ...state.revealed };
   delete revealed[chit.id]; // arrives folded for the receiver
 
+  const from = state.players.find((p) => p.id === fromId);
+  const to = state.players.find((p) => p.id === toId);
+  log(`${from?.name ?? "Player"} passed a chit to ${to?.name ?? "Player"}.`);
+
+  // If the receiver now has four identical chits, they win immediately — no
+  // need to wait for their turn and be forced to pass first.
+  if (isWinningHand(receiver)) {
+    state = {
+      ...state,
+      hands: { ...state.hands, [toId]: receiver },
+      revealed,
+      pass: null,
+    };
+    finish(toId, extractWinningChits(receiver));
+    return;
+  }
+
   state = {
     ...state,
     hands: { ...state.hands, [toId]: receiver },
@@ -293,10 +311,6 @@ function completePass() {
     turnIndex: nextTurnIndex(state.turnIndex, state.players.length),
     turnStartedAt: Date.now(),
   };
-
-  const from = state.players.find((p) => p.id === fromId);
-  const to = state.players.find((p) => p.id === toId);
-  log(`${from?.name ?? "Player"} passed a chit to ${to?.name ?? "Player"}.`);
   emit();
 }
 
@@ -312,7 +326,8 @@ export function callShow(playerId: string): { ok: boolean; reason?: string } {
     return { ok: false, reason: "Your four chits are not identical." };
   }
 
-  finish(playerId, hand);
+  const winningChits = extractWinningChits(hand);
+  finish(playerId, winningChits);
   return { ok: true };
 }
 
@@ -394,7 +409,7 @@ function tick() {
 
   // A simulated opponent may claim a valid show.
   if (active.isBot && isWinningHand(state.hands[active.id] ?? []) && elapsed > 900) {
-    finish(active.id, state.hands[active.id]);
+    finish(active.id, extractWinningChits(state.hands[active.id] ?? []));
     return;
   }
 
