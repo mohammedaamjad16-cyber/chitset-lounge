@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ButtonLoader } from "@/components/shared/loaders";
 import { notify } from "@/lib/notify";
-import { joinRoom, setMeId, setOnlineMode } from "@/lib/game/room-store";
 import { joinOnlineRoom } from "@/lib/realtime/room-sync";
 import { useAuth } from "@/lib/auth/auth-context";
 
@@ -77,26 +76,23 @@ function JoinRoom() {
       return;
     }
 
+    // Real rooms live on the server — guests would otherwise end up in their own
+    // private phantom room. Route them through sign-in first, code remembered.
+    if (!user) {
+      notify.info("Quick sign-in needed", "Sign in so you land in the host's real room.");
+      void navigate({ to: "/auth", search: { code: form.roomCode } });
+      return;
+    }
+
     setSubmitting(true);
     void (async () => {
       try {
-        let roomName: string;
-        if (user) {
-          const room = await joinOnlineRoom(form.roomCode, {
-            id: user.id,
-            name: profile?.username ?? form.playerName.trim(),
-            emoji: profile?.avatar_emoji,
-          });
-          roomName = room.name;
-        } else {
-          await new Promise((r) => setTimeout(r, 700));
-          const room = joinRoom(form.playerName.trim(), form.roomCode);
-          const me = room.players[room.players.length - 1];
-          setMeId(me.id);
-          setOnlineMode(false);
-          roomName = room.name;
-        }
-        notify.success("Joined successfully", `Welcome to ${roomName}.`);
+        const room = await joinOnlineRoom(form.roomCode, {
+          id: user.id,
+          name: profile?.username ?? form.playerName.trim(),
+          emoji: profile?.avatar_emoji,
+        });
+        notify.success("Joined successfully", `Welcome to ${room.name}.`);
         navigate({ to: "/lobby" });
       } catch (err) {
         const code = err instanceof Error ? err.message : "UNKNOWN";

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { z } from "zod";
 import { LogIn, UserPlus, Mail, KeyRound, User as UserIcon, Sparkles } from "lucide-react";
@@ -13,6 +13,12 @@ import { notify } from "@/lib/notify";
 import { useAuth } from "@/lib/auth/auth-context";
 
 export const Route = createFileRoute("/auth")({
+  // Invite flows land here as /auth?code=XXXX so sign-in can resume the join.
+  // Create-room also gates guests through auth via /auth?returnTo=/create-room.
+  validateSearch: (search: Record<string, unknown>): { code?: string; returnTo?: string } => ({
+    code: typeof search.code === "string" ? search.code : undefined,
+    returnTo: typeof search.returnTo === "string" ? search.returnTo : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Sign in or create an account — ChitSet" },
@@ -52,6 +58,7 @@ function GoogleMark() {
 
 function AuthPage() {
   const navigate = useNavigate();
+  const { code: invitedCode, returnTo } = Route.useSearch();
   const { session, signInWithEmail, signUpWithEmail, signInWithGoogle, guestName, setGuestName } = useAuth();
   const [tab, setTab] = useState("signin");
   const [email, setEmail] = useState("");
@@ -61,9 +68,16 @@ function AuthPage() {
   const [error, setError] = useState<string | null>(null);
   const [confirmSent, setConfirmSent] = useState(false);
 
+  // After signing in, resume an invited join or return to the requested page.
+  const afterAuthNavigate = useCallback(() => {
+    if (returnTo) void navigate({ to: returnTo });
+    else if (invitedCode) void navigate({ to: "/join-room", search: { code: invitedCode } });
+    else void navigate({ to: "/profile", replace: true });
+  }, [returnTo, invitedCode, navigate]);
+
   useEffect(() => {
-    if (session) void navigate({ to: "/profile", replace: true });
-  }, [session, navigate]);
+    if (session) afterAuthNavigate();
+  }, [session, afterAuthNavigate]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -84,7 +98,7 @@ function AuthPage() {
         const signedIn = await signUpWithEmail(emailResult.data, password, nameResult.data);
         if (signedIn) {
           notify.success("Welcome to ChitSet!");
-          void navigate({ to: "/profile" });
+          afterAuthNavigate();
         } else {
           setConfirmSent(true);
           notify.info("Check your email to confirm your account.");
@@ -92,7 +106,7 @@ function AuthPage() {
       } else {
         await signInWithEmail(emailResult.data, password);
         notify.success("Signed in");
-        void navigate({ to: "/profile" });
+        afterAuthNavigate();
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Something went wrong";

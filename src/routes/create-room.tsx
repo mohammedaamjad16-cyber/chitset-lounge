@@ -22,7 +22,6 @@ import { playCue } from "@/lib/audio/audio-manager";
 import { CategoryGrid } from "@/components/room/category-grid";
 import { ButtonLoader } from "@/components/shared/loaders";
 import { notify } from "@/lib/notify";
-import { createRoom, setMeId, setOnlineMode } from "@/lib/game/room-store";
 import { createOnlineRoom } from "@/lib/realtime/room-sync";
 import { useAuth } from "@/lib/auth/auth-context";
 import { CATEGORIES } from "@/lib/game/categories";
@@ -100,6 +99,14 @@ function CreateRoom() {
       return;
     }
 
+    // Online rooms live on the server — guests would create a local room
+    // that friends can never join. Route them through sign-in first.
+    if (!user) {
+      notify.info("Quick sign-in needed", "Sign in so your friends can join with the room code.");
+      void navigate({ to: "/auth", search: { returnTo: "/create-room" } });
+      return;
+    }
+
     setSubmitting(true);
     const input = {
       hostName: form.hostName.trim(),
@@ -114,16 +121,8 @@ function CreateRoom() {
 
     void (async () => {
       try {
-        if (user) {
-          const room = await createOnlineRoom(input, { id: user.id, emoji: profile?.avatar_emoji });
-          notify.success("Room created", `Room code ${room.code} is live — share it with friends.`);
-        } else {
-          await new Promise((r) => setTimeout(r, 700));
-          const room = createRoom(input);
-          setMeId(room.hostId);
-          setOnlineMode(false);
-          notify.success("Room created", `Room code ${room.code} is ready to share.`);
-        }
+        const room = await createOnlineRoom(input, { id: user.id, emoji: profile?.avatar_emoji });
+        notify.success("Room created", `Room code ${room.code} is live — share it with friends.`);
         navigate({ to: "/lobby" });
       } catch {
         notify.error("Couldn't create room", "Something went wrong. Please try again.");
