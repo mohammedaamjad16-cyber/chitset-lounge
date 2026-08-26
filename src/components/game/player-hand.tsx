@@ -13,8 +13,6 @@ interface PlayerHandProps {
   selectedId: string | null;
   isMyTurn: boolean;
   canAct: boolean;
-  /** Player already Showed — disable the Show button. */
-  hasShown?: boolean;
   /** Increment to shake the hand after a rejected action (e.g. invalid Show). */
   shakeKey?: number;
   onSelect: (chitId: string) => void;
@@ -29,7 +27,6 @@ export function PlayerHand({
   selectedId,
   isMyTurn,
   canAct,
-  hasShown = false,
   shakeKey = 0,
   onSelect,
   onReveal,
@@ -124,10 +121,10 @@ export function PlayerHand({
           <Button
             variant="outline"
             className="min-h-11 w-full border-success/60 text-success hover:bg-success/10"
-            disabled={!canAct || !isMyTurn || hasShown}
+            disabled={!canAct || !isMyTurn}
             onClick={onShow}
           >
-            <Trophy className="mr-1.5 h-4 w-4" /> {hasShown ? "Showed" : "Show!"}
+            <Trophy className="mr-1.5 h-4 w-4" /> Show!
           </Button>
         </motion.div>
       </motion.div>

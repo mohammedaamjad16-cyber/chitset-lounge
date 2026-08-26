@@ -214,7 +214,6 @@ function GameRoute() {
 
   const handlePass = () => {
     if (!selected || !me) return;
-    if (match?.shown[me.id]) return; // already Showed — can't pass
     play("pass");
     netPassChit(me.id, selected);
     setSelected(null);
@@ -315,7 +314,6 @@ function GameRoute() {
             selectedId={selected}
             isMyTurn={isMyTurn}
             canAct={canAct}
-            hasShown={Boolean(match.shown[me?.id ?? ""])}
             shakeKey={shakeKey}
             onSelect={(id) => {
               play("chitSelect");

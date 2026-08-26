@@ -267,7 +267,6 @@ export function currentPlayer(): MatchPlayer | undefined {
 
 export function passChit(playerId: string, chitId: string) {
   if (!state || state.phase !== "playing") return;
-  if (state.shown[playerId]) return; // already Showed — can't pass
   const active = state.players[state.turnIndex];
   if (!active || active.id !== playerId) return;
 
@@ -300,7 +299,7 @@ function completePass() {
     pass: null,
     phase: "playing",
     turns: state.turns + 1,
-    turnIndex: nextActiveTurnIndex(state.turnIndex),
+    turnIndex: nextTurnIndex(state.turnIndex, state.players.length),
     turnStartedAt: Date.now(),
   };
 
@@ -398,17 +397,6 @@ function finishAll(s: MatchState) {
   stopTicker();
 }
 
-/** Find the next player who hasn't Showed yet. */
-function nextActiveTurnIndex(current: number): number {
-  if (!state) return 0;
-  const len = state.players.length;
-  for (let i = 1; i <= len; i++) {
-    const idx = (current + i) % len;
-    if (!state.shown[state.players[idx].id]) return idx;
-  }
-  return current; // fallback — shouldn't happen if game ends properly
-}
-
 export function clearInvalidShow() {
   if (!state?.invalidShowAt) return;
   state = { ...state, invalidShowAt: null, invalidShowBy: null };
@@ -462,14 +450,6 @@ function tick() {
 
   const active = state.players[state.turnIndex];
   if (!active) return;
-
-  // Skip players who already Showed — advance to the next active player.
-  if (state.shown[active.id]) {
-    state = { ...state, turnIndex: nextActiveTurnIndex(state.turnIndex), turnStartedAt: Date.now() };
-    emit();
-    return;
-  }
-
   const elapsed = now - state.turnStartedAt;
 
   // A simulated opponent may claim a valid show.
