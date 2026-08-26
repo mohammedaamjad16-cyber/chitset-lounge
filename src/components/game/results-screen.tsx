@@ -8,6 +8,7 @@ import { ChitCard } from "./chit-card";
 import { formatDuration } from "@/lib/game/engine";
 import type { MatchState } from "@/lib/game/match-store";
 import { readHistory } from "@/lib/game/history";
+import { useReducedMotionPref } from "@/hooks/use-reduced-motion";
 
 interface ResultsScreenProps {
   match: MatchState;
@@ -18,6 +19,7 @@ interface ResultsScreenProps {
 }
 
 function Confetti() {
+  const reduced = useReducedMotionPref();
   const pieces = useMemo(
     () =>
       Array.from({ length: 34 }, (_, i) => ({
@@ -29,6 +31,9 @@ function Confetti() {
       })),
     [],
   );
+
+  // Decorative only — drop it entirely under reduced motion.
+  if (reduced) return null;
 
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl" aria-hidden="true">
@@ -56,21 +61,22 @@ export function ResultsScreen({
   const winner = match.players.find((p) => p.id === match.winnerId);
   const duration = (match.endedAt ?? Date.now()) - match.startedAt;
   const history = useMemo(() => readHistory().slice(0, 4), []);
+  const reduced = useReducedMotionPref();
   const iWon = winner?.id === meId;
 
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: reduced ? 0.2 : 0.4 }}
       className="mx-auto w-full max-w-3xl space-y-6"
     >
       <GlassCard className="relative overflow-hidden p-6 text-center sm:p-10">
         <Confetti />
         <motion.div
-          initial={{ scale: 0.6, rotate: -12 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{ type: "spring", stiffness: 260, damping: 14 }}
+          initial={reduced ? { opacity: 0 } : { scale: 0.6, rotate: -12 }}
+          animate={reduced ? { opacity: 1 } : { scale: 1, rotate: 0 }}
+          transition={reduced ? { duration: 0.2 } : { type: "spring", stiffness: 260, damping: 14 }}
           className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-gradient-primary text-primary-foreground shadow-glow"
         >
           <Trophy className="h-7 w-7" />

@@ -18,8 +18,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CategoryGrid } from "@/components/room/category-grid";
+import { playCue } from "@/lib/audio/audio-manager";
 import { notify } from "@/lib/notify";
-import { autoBalanceTeams, clearTeams, updateRoomSettings } from "@/lib/game/room-store";
+import {
+  autoBalanceTeams,
+  clearTeams,
+  isOnlineMode,
+  updateRoomSettings,
+} from "@/lib/game/room-store";
+import { updateOnlineRoom } from "@/lib/realtime/room-sync";
 import type { GameMode, RoomState, RoomVisibility } from "@/lib/game/types";
 import type { BotDifficulty } from "@/lib/game/bots";
 
@@ -50,6 +57,17 @@ export function RoomSettingsDialog({
     });
     if (gameMode === "team") autoBalanceTeams();
     else clearTeams();
+    // Online rooms must push settings to the backend, or remote players never see them.
+    if (isOnlineMode()) {
+      void updateOnlineRoom(room.code, {
+        max_players: Number(maxPlayers),
+        category_id: categoryId,
+        visibility,
+        game_mode: gameMode,
+      }).catch(() =>
+        notify.error("Couldn't sync settings", "Changes apply to your device only."),
+      );
+    }
     notify.success("Settings updated", "Your room configuration has been saved.");
     onOpenChange(false);
   };
@@ -108,7 +126,10 @@ export function RoomSettingsDialog({
               </div>
               <Switch
                 checked={gameMode === "team"}
-                onCheckedChange={(c) => setGameMode(c ? "team" : "classic")}
+                onCheckedChange={(c) => {
+                  playCue("select");
+                  setGameMode(c ? "team" : "classic");
+                }}
               />
             </div>
             <div className="flex items-center justify-between rounded-xl border border-border/60 p-3">

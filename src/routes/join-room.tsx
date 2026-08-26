@@ -14,6 +14,11 @@ import { joinOnlineRoom } from "@/lib/realtime/room-sync";
 import { useAuth } from "@/lib/auth/auth-context";
 
 export const Route = createFileRoute("/join-room")({
+  // Invite links and QR codes land here as /join-room?code=XXXX-XX —
+  // validateSearch makes that param readable so the form can prefill it.
+  validateSearch: (search: Record<string, unknown>): { code?: string } => ({
+    code: typeof search.code === "string" ? search.code : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Join a Room — ChitSet" },
@@ -43,7 +48,11 @@ type Errors = Partial<Record<keyof FormState, string>>;
 const normalizeCode = (raw: string) => raw.trim().toUpperCase().slice(0, 10);
 
 function JoinRoom() {
-  const [form, setForm] = useState<FormState>({ playerName: "", roomCode: "" });
+  const { code: invitedCode } = Route.useSearch();
+  const [form, setForm] = useState<FormState>({
+    playerName: "",
+    roomCode: normalizeCode(invitedCode ?? ""),
+  });
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
@@ -158,7 +167,9 @@ function JoinRoom() {
                 aria-describedby="roomCode-help roomCode-error"
               />
               <p id="roomCode-help" className="text-xs text-muted-foreground">
-                The host can find the code at the top of the lobby — ask them to tap "Copy Code".
+                {invitedCode
+                  ? "Invite code detected — just add your name and jump in."
+                  : 'The host can find the code at the top of the lobby — ask them to tap "Copy Code".'}
               </p>
               {errors.roomCode && (
                 <p id="roomCode-error" role="alert" className="text-xs text-destructive">

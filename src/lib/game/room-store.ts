@@ -187,6 +187,24 @@ export function removeBots() {
   emit();
 }
 
+/** Host action: remove any single player from the room. */
+export function removePlayer(playerId: string) {
+  if (!state) return;
+  state = { ...state, players: state.players.filter((p) => p.id !== playerId) };
+  emit();
+}
+
+/** Host action: hand the crown to another player. */
+export function setHostId(playerId: string) {
+  if (!state) return;
+  state = {
+    ...state,
+    hostId: playerId,
+    players: state.players.map((p) => ({ ...p, isHost: p.id === playerId })),
+  };
+  emit();
+}
+
 /* ------------------------------------------------------------------ */
 /* Teams                                                              */
 /* ------------------------------------------------------------------ */

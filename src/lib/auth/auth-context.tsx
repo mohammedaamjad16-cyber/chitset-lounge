@@ -44,6 +44,20 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 const GUEST_KEY = "chitset:guest-name";
 
+/**
+ * The Lovable OAuth broker (`/~oauth/initiate`) is served by Lovable's hosting
+ * layer — it doesn't exist on a local Vite dev server or self-hosted deploys,
+ * where sign-in would just land on a 404. Probe once and remember.
+ */
+let brokerProbe: Promise<boolean> | null = null;
+
+function hasOAuthBroker() {
+  brokerProbe ??= fetch("/~oauth/initiate", { redirect: "manual" })
+    .then((res) => res.status !== 404)
+    .catch(() => false);
+  return brokerProbe;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -123,10 +137,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const signInWithGoogle = useCallback(async () => {
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+    if (await hasOAuthBroker()) {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) throw result.error;
+      return;
+    }
+
+    // Off Lovable hosting: sign in straight through Supabase.
+    const redirectTo = `${window.location.origin}/auth`;
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo, skipBrowserRedirect: true },
     });
-    if (result.error) throw result.error;
+    if (error) throw error;
+    if (!data?.url) throw new Error("Couldn't start Google sign-in.");
+
+    // Pre-flight the authorize endpoint so a misconfigured provider produces a
+    // clear message here instead of a bare 400 page after navigation.
+    let failMessage: string | null = null;
+    try {
+      const res = await fetch(data.url, { redirect: "manual" });
+      if (res.type !== "opaqueredirect" && !res.ok) {
+        const body = (await res.json().catch(() => null)) as { msg?: string } | null;
+        const detail = body?.msg ?? "";
+        failMessage =
+          /secret|provider/i.test(detail)
+            ? "Google sign-in isn't configured for this app yet. Enable the Google provider (with its client ID and secret) in your Supabase auth settings."
+            : detail || "Google sign-in failed.";
+      }
+    } catch {
+      /* couldn't pre-flight (network/CORS) — try the navigation anyway */
+    }
+    if (failMessage) throw new Error(failMessage);
+
+    window.location.href = data.url;
   }, []);
 
   const signOut = useCallback(async () => {

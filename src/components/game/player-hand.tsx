@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Eye, Hand, Send, Trophy } from "lucide-react";
+import { Hand, Send, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChitCard } from "./chit-card";
 import type { Chit } from "@/lib/game/engine";
@@ -17,7 +17,6 @@ interface PlayerHandProps {
   shakeKey?: number;
   onSelect: (chitId: string) => void;
   onReveal: (chitId: string) => void;
-  onRevealAll: () => void;
   onPass: () => void;
   onShow: () => void;
 }
@@ -31,7 +30,6 @@ export function PlayerHand({
   shakeKey = 0,
   onSelect,
   onReveal,
-  onRevealAll,
   onPass,
   onShow,
 }: PlayerHandProps) {
@@ -61,9 +59,6 @@ export function PlayerHand({
             best set {best}/{CHITS_PER_PLAYER}
           </span>
         </div>
-        <Button variant="ghost" size="sm" className="min-h-11" onClick={onRevealAll}>
-          <Eye className="mr-1.5 h-4 w-4" /> Unfold all
-        </Button>
       </div>
 
       {/* Turn state, announced for screen readers too */}
@@ -135,7 +130,7 @@ export function PlayerHand({
       </motion.div>
 
       <p className="text-center text-xs text-muted-foreground">
-        Tap a chit to unfold it, then pass it clockwise. Call <strong>Show</strong> when all four match.
+        Tap a chit to select it, then pass it clockwise. Call <strong>Show</strong> when all four match.
       </p>
     </div>
   );

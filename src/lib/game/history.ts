@@ -18,7 +18,11 @@ export function readHistory(): MatchHistoryEntry[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as MatchHistoryEntry[]) : [];
+    if (!raw) return [];
+    const all = JSON.parse(raw) as MatchHistoryEntry[];
+    // Heal duplicates that may exist from earlier versions.
+    const seen = new Set<string>();
+    return all.filter((h) => (seen.has(h.id) ? false : seen.add(h.id)));
   } catch {
     return [];
   }
@@ -26,7 +30,8 @@ export function readHistory(): MatchHistoryEntry[] {
 
 export function addHistoryEntry(entry: MatchHistoryEntry) {
   if (typeof window === "undefined") return;
-  const next = [entry, ...readHistory()].slice(0, MAX_ENTRIES);
+  // Upsert by id so remounts / replays of the same match can't create duplicates.
+  const next = [entry, ...readHistory().filter((h) => h.id !== entry.id)].slice(0, MAX_ENTRIES);
   try {
     window.localStorage.setItem(KEY, JSON.stringify(next));
   } catch {

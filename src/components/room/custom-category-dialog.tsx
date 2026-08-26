@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { useReducedMotionPref } from "@/hooks/use-reduced-motion";
 import { playCue } from "@/lib/audio/audio-manager";
 import {
   CUSTOM_PREFIX,
@@ -51,6 +52,7 @@ export function CustomCategoryDialog({
   const [emoji, setEmoji] = useState("✨");
   const [names, setNames] = useState<string[]>(() => Array.from({ length: playerCount }, () => ""));
   const [touched, setTouched] = useState(false);
+  const reduced = useReducedMotionPref();
 
   useEffect(() => {
     if (!open) return;
@@ -154,8 +156,8 @@ export function CustomCategoryDialog({
                       playCue("select");
                       setEmoji(e);
                     }}
-                    whileTap={{ scale: 0.9 }}
-                    animate={{ scale: emoji === e ? 1.08 : 1 }}
+                    whileTap={reduced ? undefined : { scale: 0.9 }}
+                    animate={reduced ? { scale: 1 } : { scale: emoji === e ? 1.08 : 1 }}
                     transition={{ type: "spring", stiffness: 460, damping: 18 }}
                     className={`grid h-11 w-11 place-items-center rounded-xl border text-lg ${
                       emoji === e ? "border-primary bg-primary/10 shadow-glow" : "border-border hover:bg-muted/50"

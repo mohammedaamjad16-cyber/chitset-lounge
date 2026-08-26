@@ -9,9 +9,11 @@ interface LobbyTopBarProps {
   room: RoomState;
   categoryName: string;
   onCopyCode: () => void;
+  /** Present when sharing is available for this room. */
+  onShare?: () => void;
 }
 
-export function LobbyTopBar({ room, categoryName, onCopyCode }: LobbyTopBarProps) {
+export function LobbyTopBar({ room, categoryName, onCopyCode, onShare }: LobbyTopBarProps) {
   return (
     <GlassCard className="p-4 sm:p-5">
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 sm:flex sm:flex-wrap sm:items-center sm:justify-between">
@@ -31,16 +33,23 @@ export function LobbyTopBar({ room, categoryName, onCopyCode }: LobbyTopBarProps
           <Button size="sm" variant="outline" className="min-h-11" onClick={onCopyCode}>
             <Copy className="mr-1.5 h-4 w-4" /> Copy Code
           </Button>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span>
-                <Button size="sm" variant="outline" className="min-h-11" disabled aria-label="Share room">
-                  <Share2 className="h-4 w-4" />
-                </Button>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>Sharing arrives in a future update</TooltipContent>
-          </Tooltip>
+          {onShare ? (
+            <Button size="sm" variant="outline" className="min-h-11" aria-label="Share room" onClick={onShare}>
+              <Share2 className="mr-1.5 h-4 w-4 sm:mr-0" />
+              <span className="sm:sr-only">Share</span>
+            </Button>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button size="sm" variant="outline" className="min-h-11" disabled aria-label="Share room">
+                    <Share2 className="h-4 w-4" />
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>Sharing is unavailable here</TooltipContent>
+            </Tooltip>
+          )}
         </div>
 
         <dl className="col-span-2 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground sm:col-auto sm:w-full">

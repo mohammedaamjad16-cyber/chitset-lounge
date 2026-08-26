@@ -1,6 +1,6 @@
 import { memo, useState } from "react";
 import { motion } from "framer-motion";
-import { Copy, Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, Copy, Pencil, Plus, Trash2 } from "lucide-react";
 import { CATEGORIES, customCategoryOptions, type Category } from "@/lib/game/categories";
 import {
   CUSTOM_PREFIX,
@@ -162,6 +162,7 @@ function CategoryTile({
   return (
     <motion.div
       animate={reduced ? {} : { scale: selected ? 1.03 : 1 }}
+      whileTap={reduced ? undefined : { scale: 0.97 }}
       transition={{ type: "spring", stiffness: 420, damping: 20 }}
       className="relative"
     >
@@ -209,6 +210,17 @@ function CategoryTile({
           <Badge variant="secondary" className="mt-2 w-fit text-[10px]">
             Coming Soon
           </Badge>
+        )}
+        {selected && (
+          <motion.span
+            initial={reduced ? { opacity: 0 } : { scale: 0, rotate: -25 }}
+            animate={reduced ? { opacity: 1 } : { scale: 1, rotate: 0 }}
+            transition={{ type: "spring", stiffness: 500, damping: 16 }}
+            className="absolute right-1.5 top-1.5 grid h-4 w-4 place-items-center rounded-full bg-primary text-primary-foreground"
+            aria-hidden="true"
+          >
+            <Check className="h-2.5 w-2.5" />
+          </motion.span>
         )}
       </button>
       {actions && <div className="absolute bottom-1.5 right-1.5">{actions}</div>}

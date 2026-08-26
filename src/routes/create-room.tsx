@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { useReducedMotionPref } from "@/hooks/use-reduced-motion";
 import { playCue } from "@/lib/audio/audio-manager";
 import { CategoryGrid } from "@/components/room/category-grid";
 import { ButtonLoader } from "@/components/shared/loaders";
@@ -311,8 +312,11 @@ function Field({
 function VisibilityOption({
   id, value, active, icon: Icon, title, desc,
 }: { id: string; value: string; active: boolean; icon: React.ComponentType<{ className?: string }>; title: string; desc: string }) {
+  const reduced = useReducedMotionPref();
+
   return (
-    <label
+    <motion.label
+      whileTap={reduced ? undefined : { scale: 0.98 }}
       htmlFor={id}
       className={cn(
         "flex min-h-11 cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors",
@@ -326,13 +330,15 @@ function VisibilityOption({
         </div>
         <p className="mt-0.5 text-xs text-muted-foreground">{desc}</p>
       </div>
-    </label>
+    </motion.label>
   );
 }
 
 function ModeOption({
   title, desc, active, disabled, onClick,
 }: { title: string; desc: string; active?: boolean; disabled?: boolean; onClick?: () => void }) {
+  const reduced = useReducedMotionPref();
+
   return (
     <motion.button
       type="button"
@@ -342,8 +348,8 @@ function ModeOption({
         onClick?.();
       }}
       disabled={disabled}
-      whileTap={disabled ? undefined : { scale: 0.96 }}
-      animate={{ scale: active ? 1.03 : 1 }}
+      whileTap={disabled || reduced ? undefined : { scale: 0.96 }}
+      animate={reduced ? { scale: 1 } : { scale: active ? 1.03 : 1 }}
       transition={{ type: "spring", stiffness: 420, damping: 18 }}
       className={cn(
         "relative rounded-xl border p-3 text-left transition-colors",

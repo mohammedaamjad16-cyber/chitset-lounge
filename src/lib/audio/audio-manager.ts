@@ -13,6 +13,7 @@ import { getSettings, subscribeSettings } from "@/lib/settings/settings-store";
 export type SoundCue =
   | "click"
   | "select"
+  | "chitSelect"
   | "flip"
   | "pass"
   | "receive"
@@ -47,6 +48,7 @@ interface Tone {
 const TONES: Record<SoundCue, Tone[]> = {
   click: [{ freq: 620, duration: 0.05, type: "triangle", gain: 0.25 }],
   select: [{ freq: 540, to: 780, duration: 0.08, type: "triangle", gain: 0.22 }],
+  chitSelect: [{ freq: 700, to: 980, duration: 0.07, type: "triangle", gain: 0.2 }],
   flip: [{ freq: 380, to: 720, duration: 0.12, type: "triangle" }],
   pass: [{ freq: 300, to: 540, duration: 0.16, type: "sine" }],
   receive: [{ freq: 520, to: 340, duration: 0.16, type: "sine", gain: 0.24 }],
@@ -110,6 +112,8 @@ const THROTTLE_MS: Partial<Record<SoundCue, number>> = {
 };
 const DEFAULT_THROTTLE_MS = 90;
 const lastPlayed = new Map<SoundCue, number>();
+/** Timestamp of the most recent cue of any kind — lets generic clicks defer to richer cues. */
+let lastAnyCueAt = 0;
 
 let ctx: AudioContext | null = null;
 let unlocked = false;
@@ -188,7 +192,11 @@ export function playCue(cue: SoundCue) {
   const now = Date.now();
   const gap = THROTTLE_MS[cue] ?? DEFAULT_THROTTLE_MS;
   if (now - (lastPlayed.get(cue) ?? 0) < gap) return;
+  // A generic click arriving right after a richer cue (select, chitSelect…) is
+  // redundant — skip it so interactions never double-fire.
+  if (cue === "click" && now - lastAnyCueAt < 70) return;
   lastPlayed.set(cue, now);
+  lastAnyCueAt = now;
 
   const sample = SAMPLE_SOURCES[cue];
   if (sample) {

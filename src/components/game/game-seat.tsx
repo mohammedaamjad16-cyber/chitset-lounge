@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useCallback } from "react";
 import { Bot, Crown, WifiOff, Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +8,7 @@ import type { MatchPlayer } from "@/lib/game/match-store";
 import { ReactionOverlay } from "@/components/chat/reaction-overlay";
 import type { Reaction } from "@/lib/chat/use-reactions";
 import { useReducedMotionPref } from "@/hooks/use-reduced-motion";
+import { playCue } from "@/lib/audio/audio-manager";
 import { cn } from "@/lib/utils";
 
 const initials = (name: string) =>
@@ -37,6 +39,8 @@ export function GameSeat({
   receiving,
 }: GameSeatProps) {
   const reduced = useReducedMotionPref();
+  // Stable identity so the timer's warning effect only fires on the transition.
+  const handleTimerWarning = useCallback(() => playCue("timerWarning"), []);
 
   return (
     <motion.div
@@ -91,6 +95,7 @@ export function GameSeat({
           durationMs={turnDurationMs}
           active={isActive}
           size={38}
+          onWarning={handleTimerWarning}
         />
       </div>
 

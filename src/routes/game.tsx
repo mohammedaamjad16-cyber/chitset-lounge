@@ -14,6 +14,7 @@ import { getCategory } from "@/lib/game/categories";
 import { addHistoryEntry } from "@/lib/game/history";
 import { recordMatchResult } from "@/lib/game/progression";
 import { useGameSound } from "@/hooks/use-game-sound";
+import { useReducedMotionPref } from "@/hooks/use-reduced-motion";
 import { getMeId, isOnlineMode, useRoom } from "@/lib/game/room-store";
 import { setOnlineRoomStatus } from "@/lib/realtime/room-sync";
 import { netCallShow, netPassChit, useMatchSync } from "@/lib/realtime/match-sync";
@@ -23,7 +24,6 @@ import { useReactions } from "@/lib/chat/use-reactions";
 import {
   clearInvalidShow,
   endMatch,
-  revealAll,
   revealChit,
   startMatch,
   useMatch,
@@ -98,6 +98,22 @@ function GameRoute() {
     }
   }, [match?.pass?.at, match?.pass?.toId, meId, play]);
 
+  // Hands are face-up: any chit that reaches this player folded (a fresh
+  // arrival, or a restored older match) flips itself open after a short settle.
+  const myFoldedIds = (match?.hands[meId ?? ""] ?? [])
+    .filter((c) => !match?.revealed[c.id])
+    .map((c) => c.id)
+    .join(",");
+  useEffect(() => {
+    if (!myFoldedIds || !match || match.phase === "finished") return;
+    const ids = myFoldedIds.split(",");
+    const t = setTimeout(() => {
+      play("flip");
+      ids.forEach((id) => revealChit(id));
+    }, 450);
+    return () => clearTimeout(t);
+  }, [myFoldedIds, match?.phase, play, match]);
+
   useEffect(() => {
     if (!match || match.phase !== "playing") return;
     const activeId = match.players[match.turnIndex]?.id ?? null;
@@ -113,7 +129,8 @@ function GameRoute() {
     const key = `${match.roomCode}-${match.startedAt}`;
     if (savedRef.current === key) return;
     savedRef.current = key;
-    play("winner");
+    // Full fanfare for your own win; a softer wrap-up when someone else takes it.
+    play(match.winnerId === meId ? "winner" : "matchEnd");
     addHistoryEntry({
       id: key,
       winnerName: match.players.find((p) => p.id === match.winnerId)?.name ?? "Player",
@@ -138,7 +155,7 @@ function GameRoute() {
       if (outcome.xpAwarded) notify.success(`+${outcome.xpAwarded} XP`, outcome.newLevel ? `Level ${outcome.newLevel} reached!` : undefined);
       outcome.unlocked.forEach((code) => notify.success("Achievement unlocked", code.replace(/_/g, " ")));
     });
-  }, [match, play]);
+  }, [match, meId, play]);
 
   if (hydrating) {
     return <DealingScreen label="Setting the table..." />;
@@ -207,7 +224,8 @@ function GameRoute() {
     const result = netCallShow(me.id);
     if (result.pending) return;
     if (result.ok) {
-      play("winner");
+      // Distinct from the winner fanfare — this is the moment of the claim.
+      play("show");
     } else {
       play("error");
       notify.error("Invalid Show", result.reason ?? "Keep playing.");
@@ -298,16 +316,12 @@ function GameRoute() {
             canAct={canAct}
             shakeKey={shakeKey}
             onSelect={(id) => {
-              play("click");
+              play("chitSelect");
               setSelected((prev) => (prev === id ? null : id));
             }}
             onReveal={(id) => {
               play("flip");
               revealChit(id);
-            }}
-            onRevealAll={() => {
-              play("flip");
-              if (me) revealAll(me.id);
             }}
             onPass={handlePass}
             onShow={handleShow}
@@ -334,6 +348,7 @@ function GameRoute() {
 }
 
 function DealingScreen({ label }: { label: string }) {
+  const reduced = useReducedMotionPref();
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-5 px-4" role="status" aria-live="polite">
       <div className="relative grid h-24 w-24 place-items-center">
@@ -341,9 +356,13 @@ function DealingScreen({ label }: { label: string }) {
           <motion.span
             key={i}
             className="absolute h-14 w-10 rounded-xl border border-border/70 bg-gradient-primary shadow-glow"
-            initial={{ rotate: 0, y: 0, opacity: 0.6 }}
-            animate={{ rotate: [0, (i - 1.5) * 22, 0], y: [0, -8, 0], opacity: 1 }}
-            transition={{ duration: 1.6, repeat: Infinity, delay: i * 0.12, ease: "easeInOut" }}
+            initial={reduced ? { opacity: 0 } : { rotate: 0, y: 0, opacity: 0.6 }}
+            animate={
+              reduced
+                ? { opacity: 1 }
+                : { rotate: [0, (i - 1.5) * 22, 0], y: [0, -8, 0], opacity: 1 }
+            }
+            transition={reduced ? { duration: 0.2 } : { duration: 1.6, repeat: Infinity, delay: i * 0.12, ease: "easeInOut" }}
           />
         ))}
       </div>

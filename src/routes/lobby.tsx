@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { CheckCircle2, LogOut, Sparkles } from "lucide-react";
 import { GlassCard } from "@/components/shared/glass-card";
@@ -24,6 +24,8 @@ import {
   isOnlineMode,
   addBots,
   removeBots,
+  removePlayer,
+  setHostId,
   updateRoomSettings,
   autoBalanceTeams,
 } from "@/lib/game/room-store";
@@ -32,11 +34,15 @@ import { notify } from "@/lib/notify";
 import { BotsPanel } from "@/components/lobby/bots-panel";
 import { playCue } from "@/lib/audio/audio-manager";
 import { ChatPanel } from "@/components/chat/chat-panel";
+import { InviteDialog } from "@/components/invite/invite-dialog";
 import { Wifi, WifiOff, Loader2 } from "lucide-react";
 import {
+  closeOnlineRoom,
+  kickOnlinePlayer,
   leaveOnlineRoom,
   setOnlineReady,
   setOnlineRoomStatus,
+  transferOnlineHost,
   useRoomSync,
 } from "@/lib/realtime/room-sync";
 import { useMatchSync } from "@/lib/realtime/match-sync";
@@ -66,8 +72,20 @@ function Lobby() {
   const [meId, setMe] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
+  const [closeRoomOpen, setCloseRoomOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [starting, setStarting] = useState(false);
   const [online, setOnline] = useState(false);
+  const prevPlayerCount = useRef(room?.players.length ?? 0);
+
+  // Ambient cues when the table gains or loses a player.
+  useEffect(() => {
+    if (!room) return;
+    const count = room.players.length;
+    if (count > prevPlayerCount.current) playCue("join");
+    else if (count < prevPlayerCount.current) playCue("leave");
+    prevPlayerCount.current = count;
+  }, [room?.players.length, room]);
   const syncStatus = useRoomSync(room?.code ?? null, online);
   useMatchSync(room?.code ?? null, (room?.hostId ?? null) === meId, online);
 
@@ -122,6 +140,77 @@ function Lobby() {
     }
   };
 
+  const joinLink =
+    typeof window !== "undefined" ? `${window.location.origin}/join-room?code=${room.code}` : "";
+
+  const copyInviteLink = async () => {
+    playCue("click");
+    try {
+      await navigator.clipboard.writeText(joinLink);
+      notify.success("Invite link copied", "Send it to friends — they'll land with the code filled in.");
+    } catch {
+      notify.error("Couldn't copy", "Share the room code instead.");
+    }
+  };
+
+  const shareRoom = async () => {
+    playCue("click");
+    if (typeof navigator.share !== "undefined") {
+      try {
+        await navigator.share({ title: `Join my ChitSet room ${room.code}`, url: joinLink });
+        return;
+      } catch {
+        /* user dismissed or share failed — fall through to copy */
+      }
+    }
+    void copyInviteLink();
+  };
+
+  const kickPlayer = (playerId: string) => {
+    const target = room.players.find((p) => p.id === playerId);
+    if (!target) return;
+    if (online) {
+      void kickOnlinePlayer(room.code, playerId)
+        .then(() => notify.info(`${target.name} removed`, "They can rejoin with the room code."))
+        .catch(() =>
+          notify.error(
+            "Couldn't remove player",
+            "The server denied the request — you may not have permission in this room.",
+          ),
+        );
+    } else {
+      removePlayer(playerId);
+      notify.info(`${target.name} removed`, "The seat is open again.");
+    }
+  };
+
+  const transferHostTo = (playerId: string) => {
+    const target = room.players.find((p) => p.id === playerId);
+    if (!target) return;
+    if (online) {
+      void transferOnlineHost(room.code, playerId)
+        .then(() => notify.success("Host transferred", `${target.name} now runs the table.`))
+        .catch(() =>
+          notify.error(
+            "Couldn't transfer host",
+            "The server denied the request — you may not have permission in this room.",
+          ),
+        );
+    } else {
+      setHostId(playerId);
+      notify.success("Host transferred", `${target.name} now runs the table.`);
+    }
+  };
+
+  const closeRoomForEveryone = () => {
+    if (online) {
+      void closeOnlineRoom(room.code).catch(() => undefined);
+    }
+    leaveRoom();
+    notify.info("Room closed", "The table has been packed up.");
+    navigate({ to: "/" });
+  };
+
   const allowBots = room.allowBots ?? true;
   const seatsOpen = Math.max(0, room.maxPlayers - room.players.length);
   const notEnoughPlayers = room.players.length < 2;
@@ -170,7 +259,12 @@ function Lobby() {
         transition={{ duration: 0.4 }}
         className="space-y-6"
       >
-        <LobbyTopBar room={room} categoryName={category?.name ?? "Category"} onCopyCode={copyCode} />
+        <LobbyTopBar
+          room={room}
+          categoryName={category?.name ?? "Category"}
+          onCopyCode={copyCode}
+          onShare={() => void shareRoom()}
+        />
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <GlassCard className="p-5 sm:p-8">
@@ -196,8 +290,16 @@ function Lobby() {
                 starting={starting}
                 onStart={start}
                 onCopyCode={copyCode}
-                onInvite={copyCode}
+                onInvite={() => setInviteOpen(true)}
                 onSettings={() => setSettingsOpen(true)}
+                otherPlayers={room.players.filter((p) => p.id !== meId)}
+                notEnoughPlayers={notEnoughPlayers}
+                allowBots={allowBots}
+                seatsOpen={seatsOpen}
+                onAddBots={addBotSeats}
+                onKickPlayer={kickPlayer}
+                onTransferHost={transferHostTo}
+                onCloseRoom={() => setCloseRoomOpen(true)}
               />
             ) : (
               <GlassCard className="p-5">
@@ -298,6 +400,16 @@ function Lobby() {
       </motion.div>
 
       <RoomSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} room={room} />
+      <InviteDialog roomCode={room.code} open={inviteOpen} onOpenChange={setInviteOpen} />
+      <ConfirmModal
+        open={closeRoomOpen}
+        onOpenChange={setCloseRoomOpen}
+        title="Close this room?"
+        description="Everyone at the table will be sent back to the home screen. This can't be undone."
+        confirmLabel="Close Room"
+        destructive
+        onConfirm={closeRoomForEveryone}
+      />
       <ConfirmModal
         open={leaveOpen}
         onOpenChange={setLeaveOpen}

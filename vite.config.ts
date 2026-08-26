@@ -12,4 +12,8 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // The Lovable default targets Cloudflare. Deploying to Vercel instead? Set
+  // DEPLOY_TARGET=vercel in the host's environment variables — every other
+  // build (Lovable publish, local) stays on the default target.
+  ...(process.env.DEPLOY_TARGET === "vercel" ? { nitro: { preset: "vercel" as const } } : {}),
 });

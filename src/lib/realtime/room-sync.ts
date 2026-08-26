@@ -160,6 +160,41 @@ export async function setOnlineRoomStatus(code: string, status: "lobby" | "in-ga
   await supabase.from("rooms").update({ status }).eq("code", code);
 }
 
+/** Host action: hand the room over to another player (same writes as the
+ *  automatic handover in leaveOnlineRoom). Throws so callers can surface RLS denials. */
+export async function transferOnlineHost(code: string, toUserId: string) {
+  const { error } = await supabase.from("rooms").update({ host_id: toUserId }).eq("code", code);
+  if (error) throw error;
+  const { error: playerError } = await supabase
+    .from("room_players")
+    .update({ is_host: true })
+    .eq("room_code", code)
+    .eq("user_id", toUserId);
+  if (playerError) throw playerError;
+}
+
+/** Host action: remove another player from the room. */
+export async function kickOnlinePlayer(code: string, userId: string) {
+  const { error } = await supabase
+    .from("room_players")
+    .delete()
+    .eq("room_code", code)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
+/** Host action: empty the table and delete the room for everyone. */
+export async function closeOnlineRoom(code: string) {
+  const { error: playersError } = await supabase
+    .from("room_players")
+    .delete()
+    .eq("room_code", code);
+  if (playersError) throw playersError;
+  const { error } = await supabase.from("rooms").delete().eq("code", code);
+  if (error) throw error;
+  setOnlineMode(false);
+}
+
 export async function leaveOnlineRoom(code: string, userId: string, isHost: boolean) {
   await supabase.from("room_players").delete().eq("room_code", code).eq("user_id", userId);
   if (isHost) {

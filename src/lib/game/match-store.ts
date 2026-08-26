@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import type { RoomState, TeamId } from "./types";
 import { botChoosePass, botDelayMs, type BotDifficulty } from "./bots";
+import { playCue } from "@/lib/audio/audio-manager";
 import {
   dealChits,
   generateChits,
@@ -177,13 +178,15 @@ export function startMatch(
   options: { bots?: boolean } = {},
 ) {
   // Offline play still needs opponents that act, so unknown seats fall back to
-  // bot control. Explicitly seated bots are always bot-controlled.
+  // bot control — but only when there is no realtime transport, otherwise the
+  // authority would start playing remote humans' hands. Explicitly seated bots
+  // are always bot-controlled.
   const autoFill = options.bots ?? true;
   const players: MatchPlayer[] = room.players.map((p) => ({
     id: p.id,
     name: p.name,
     isHost: p.isHost,
-    isBot: p.isBot === true || (autoFill && p.id !== meId),
+    isBot: p.isBot === true || (!net && autoFill && p.id !== meId),
     connected: p.connection !== "disconnected",
     team: p.team,
   }));
@@ -191,13 +194,18 @@ export function startMatch(
   const chits = generateChits(room.categoryId, players.length);
   const hands = dealChits(chits, players.map((p) => p.id));
 
+  // Chits land face-up — nobody should have to tap four times just to read
+  // their hand. (Passed chits still arrive folded and auto-flip on landing.)
+  const revealed: Record<string, boolean> = {};
+  Object.values(hands).forEach((hand) => hand.forEach((c) => { revealed[c.id] = true; }));
+
   state = {
     roomCode: room.code,
     roomName: room.name,
     categoryId: room.categoryId,
     players,
     hands,
-    revealed: {},
+    revealed,
     turnIndex: 0,
     turnStartedAt: Date.now(),
     turnDurationMs: TURN_DURATION_MS,
@@ -215,6 +223,7 @@ export function startMatch(
     log: [{ id: uid(), text: "Chits shuffled and dealt.", at: Date.now() }],
   };
   emit();
+  playCue("shuffle");
   ensureTicker();
   return state;
 }
@@ -224,6 +233,7 @@ export function beginPlay() {
   state = { ...state, phase: "playing", turnStartedAt: Date.now() };
   log(`${currentPlayer()?.name ?? "Player"} starts the round.`);
   emit();
+  playCue("gameStart");
 }
 
 export function revealChit(chitId: string) {
@@ -357,7 +367,11 @@ function botPass(playerId: string, difficulty: BotDifficulty) {
 }
 
 function tick() {
-  if (!state) return;
+  if (!state) {
+    // Nothing to drive — release the interval so an abandoned match can't tick forever.
+    stopTicker();
+    return;
+  }
   // Only the authority drives the clock; guests render host snapshots.
   if (net && !net.isHost) return;
   const now = Date.now();
@@ -401,6 +415,7 @@ function tick() {
     const hand = state.hands[active.id] ?? [];
     const random = hand[Math.floor(Math.random() * hand.length)];
     log(`${active.name} ran out of time — a chit was passed automatically.`);
+    playCue("timerExpire");
     if (random) passChit(active.id, random.id);
   }
 }

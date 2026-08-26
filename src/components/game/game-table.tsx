@@ -20,6 +20,17 @@ function seatPosition(index: number, total: number) {
   return { left: 50 + radius * Math.cos(angle), top: 50 + radius * Math.sin(angle) };
 }
 
+/**
+ * Mobile seats sit in a 2-column grid — derive each seat's centre within the
+ * grid box so the flying chit can travel between them there too.
+ */
+function mobileSeatPosition(index: number, total: number) {
+  const rows = Math.max(1, Math.ceil(total / 2));
+  const col = index % 2;
+  const row = Math.floor(index / 2);
+  return { left: col === 0 ? 25 : 75, top: ((row + 0.5) * 100) / rows };
+}
+
 /** Mid-point pulled towards the table centre so the chit travels on an arc. */
 function arcMidpoint(
   from: { left: number; top: number },
@@ -28,6 +39,48 @@ function arcMidpoint(
   const mx = (from.left + to.left) / 2;
   const my = (from.top + to.top) / 2;
   return { left: mx + (50 - mx) * 0.55, top: my + (50 - my) * 0.55 };
+}
+
+interface Point {
+  left: number;
+  top: number;
+}
+
+/** The flying chit shared by the desktop circle and the mobile grid. */
+function PassFlight({
+  from,
+  mid,
+  to,
+  reduced,
+}: {
+  from: Point;
+  mid: Point | null;
+  to: Point;
+  reduced: boolean;
+}) {
+  return (
+    <motion.div
+      className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-1/2"
+      initial={{ left: `${from.left}%`, top: `${from.top}%`, scale: 0.7, rotate: -14, opacity: 0 }}
+      animate={
+        reduced
+          ? { left: `${to.left}%`, top: `${to.top}%`, scale: 1, opacity: 1 }
+          : {
+              left: [`${from.left}%`, `${mid?.left ?? to.left}%`, `${to.left}%`],
+              top: [`${from.top}%`, `${mid?.top ?? to.top}%`, `${to.top}%`],
+              scale: [0.8, 1.15, 1],
+              rotate: [-14, 8, 20],
+              opacity: [0, 1, 1],
+            }
+      }
+      exit={{ opacity: 0, scale: 0.6 }}
+      transition={{ duration: reduced ? 0.15 : 0.62, ease: "easeInOut" }}
+    >
+      <span className="chit-paper grid h-14 w-10 place-items-center rounded-xl border border-border/80 text-lg text-primary-foreground shadow-glow">
+        📜
+      </span>
+    </motion.div>
+  );
 }
 
 export function GameTable({ match, meId, categoryName, categoryEmoji, reactions }: GameTableProps) {
@@ -82,29 +135,8 @@ export function GameTable({ match, meId, categoryName, categoryEmoji, reactions 
 
         {/* Chit travelling on a curve towards the next player */}
         <AnimatePresence>
-          {pass && from && to && mid && (
-            <motion.div
-              key={pass.chit.id + pass.at}
-              className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-1/2"
-              initial={{ left: `${from.left}%`, top: `${from.top}%`, scale: 0.7, rotate: -14, opacity: 0 }}
-              animate={
-                reduced
-                  ? { left: `${to.left}%`, top: `${to.top}%`, scale: 1, opacity: 1 }
-                  : {
-                      left: [`${from.left}%`, `${mid.left}%`, `${to.left}%`],
-                      top: [`${from.top}%`, `${mid.top}%`, `${to.top}%`],
-                      scale: [0.8, 1.15, 1],
-                      rotate: [-14, 8, 20],
-                      opacity: [0, 1, 1],
-                    }
-              }
-              exit={{ opacity: 0, scale: 0.6 }}
-              transition={{ duration: reduced ? 0.15 : 0.62, ease: "easeInOut" }}
-            >
-              <span className="chit-paper grid h-14 w-10 place-items-center rounded-xl border border-border/80 text-lg text-primary-foreground shadow-glow">
-                📜
-              </span>
-            </motion.div>
+          {pass && from && to && (
+            <PassFlight key={pass.chit.id + pass.at} from={from} mid={mid} to={to} reduced={!!reduced} />
           )}
         </AnimatePresence>
       </div>
@@ -121,21 +153,47 @@ export function GameTable({ match, meId, categoryName, categoryEmoji, reactions 
             compact
           />
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          {match.players.map((player) => (
-            <GameSeat
-              key={player.id}
-              player={player}
-              handCount={match.hands[player.id]?.length ?? 0}
-              isActive={active?.id === player.id && match.phase === "playing"}
-              isMe={player.id === meId}
-              turnStartedAt={match.turnStartedAt}
-              turnDurationMs={match.turnDurationMs}
-              reactions={reactions}
-              receiving={pass?.toId === player.id}
-              compact
-            />
-          ))}
+        <div className="relative">
+          <div className="grid grid-cols-2 gap-2">
+            {match.players.map((player, i) => (
+              <GameSeat
+                key={player.id}
+                player={player}
+                handCount={match.hands[player.id]?.length ?? 0}
+                isActive={active?.id === player.id && match.phase === "playing"}
+                isMe={player.id === meId}
+                turnStartedAt={match.turnStartedAt}
+                turnDurationMs={match.turnDurationMs}
+                reactions={reactions}
+                receiving={pass?.toId === player.id}
+                compact
+              />
+            ))}
+          </div>
+
+          {/* Mobile pass flight — same arc, coordinates mapped to the seat grid */}
+          <AnimatePresence>
+            {pass &&
+              (() => {
+                const mFrom = mobileSeatPosition(
+                  match.players.findIndex((p) => p.id === pass.fromId),
+                  total,
+                );
+                const mTo = mobileSeatPosition(
+                  match.players.findIndex((p) => p.id === pass.toId),
+                  total,
+                );
+                return (
+                  <PassFlight
+                    key={pass.chit.id + pass.at}
+                    from={mFrom}
+                    mid={arcMidpoint(mFrom, mTo)}
+                    to={mTo}
+                    reduced={!!reduced}
+                  />
+                );
+              })()}
+          </AnimatePresence>
         </div>
       </div>
     </div>

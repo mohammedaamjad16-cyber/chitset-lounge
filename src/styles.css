@@ -264,6 +264,15 @@
     font-family: var(--font-display);
     letter-spacing: -0.02em;
   }
+
+  /*
+   * Mobile play feel: fast taps on chits must never trigger double-tap zoom,
+   * and the grey tap flash ruins the card animations — kill both.
+   */
+  button, [role="button"], a, label, input, select, textarea {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
 }
 
 /*
